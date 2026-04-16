@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AsciiCanvas } from './components/AsciiCanvas';
 import type { AsciiCanvasHandle } from './components/AsciiCanvas';
 import { Controls } from './components/Controls';
+import { Rail } from './components/Rail';
 import { ThanksModal } from './components/ThanksModal';
 import type { AsciiOptions, SourceKind } from './types';
 import './App.css';
@@ -33,9 +34,12 @@ const DEFAULT_OPTIONS: AsciiOptions = {
 
 export default function App() {
   const [options, setOptions] = useState<AsciiOptions>(DEFAULT_OPTIONS);
-  // Default to webcam — browser will prompt for permission on load.
-  // If the user denies, they'll see the error toast and can click Upload instead.
-  const [source, setSource] = useState<SourceKind>('webcam');
+  // Start with no source selected. If the user's already granted camera
+  // permission (persisted from a prior visit), we'll auto-promote to 'webcam'
+  // via the effect below. Otherwise we show the welcome screen and wait for
+  // an explicit tap — important on mobile Safari, which re-prompts every
+  // session and would otherwise nag on every visit.
+  const [source, setSource] = useState<SourceKind>('none');
   // When the user uploads a file, we turn it into an object URL
   // (a blob-backed string URL) so <img> can load it without re-encoding.
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -62,6 +66,22 @@ export default function App() {
 
   // Thanks modal: show after any successful export.
   const [showThanks, setShowThanks] = useState(false);
+
+  // Auto-start webcam ONLY if permission is already granted (no prompt needed).
+  // If the user has to be prompted, we wait for them to tap the Webcam button —
+  // avoids the "nag on every visit" problem on mobile Safari.
+  useEffect(() => {
+    const permissions = navigator.permissions;
+    if (!permissions?.query) return;
+    permissions
+      .query({ name: 'camera' as PermissionName })
+      .then((result) => {
+        if (result.state === 'granted') setSource('webcam');
+      })
+      .catch(() => {
+        // Permissions API not supported for 'camera' here — stay on welcome.
+      });
+  }, []);
 
   // Ref into the canvas component so we can call its screenshot() method.
   const canvasRef = useRef<AsciiCanvasHandle>(null);
@@ -166,8 +186,6 @@ export default function App() {
         isGifRecording={isGifRecording}
         gifElapsed={gifElapsed}
         gifProgress={gifProgress}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((o) => !o)}
       />
 
       <main className="stage" style={{ background: options.background }}>
@@ -190,6 +208,21 @@ export default function App() {
         )}
         {errorMsg && <div className="error-toast">{errorMsg}</div>}
       </main>
+
+      {/* Mobile-only bottom action bar (CSS hides this on desktop). */}
+      <Rail
+        source={source}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((o) => !o)}
+        onScreenshot={handleScreenshot}
+        onToggleRecord={handleToggleRecord}
+        isRecording={isRecording}
+        recordElapsed={recordElapsed}
+        onToggleGif={handleToggleGif}
+        isGifRecording={isGifRecording}
+        gifElapsed={gifElapsed}
+        gifProgress={gifProgress}
+      />
 
       <ThanksModal open={showThanks} onClose={() => setShowThanks(false)} />
     </div>

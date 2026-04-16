@@ -27,8 +27,6 @@ interface Props {
   isGifRecording: boolean;
   gifElapsed: number;
   gifProgress: number; // 0..1 during post-stop encoding
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
 }
 
 // Formats a millisecond count as m:ss, e.g. "0:04" — for the record timer.
@@ -53,8 +51,6 @@ export function Controls({
   isGifRecording,
   gifElapsed,
   gifProgress,
-  sidebarOpen,
-  onToggleSidebar,
 }: Props) {
   // Tiny helper: update ONE field of options. Saves repeating the spread.
   const update = <K extends keyof AsciiOptions>(key: K, value: AsciiOptions[K]) =>
@@ -70,64 +66,6 @@ export function Controls({
 
   return (
     <aside className="controls">
-      {/* Action rail — always visible regardless of sidebar state. Gives
-          mobile users access to record/save without opening the panel. */}
-      <nav className="rail" aria-label="Actions">
-        <button
-          className="rail-btn"
-          onClick={onToggleSidebar}
-          aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          title={sidebarOpen ? 'Collapse' : 'Expand'}
-        >
-          {sidebarOpen ? '◀' : '▶'}
-        </button>
-        <button
-          className="rail-btn"
-          onClick={onScreenshot}
-          disabled={source === 'none'}
-          aria-label="Save PNG"
-          title="Save PNG"
-        >
-          png
-        </button>
-        <button
-          className={isRecording ? 'rail-btn recording' : 'rail-btn'}
-          onClick={onToggleRecord}
-          disabled={source === 'none' || isGifRecording}
-          aria-label={isRecording ? 'Stop recording' : 'Record MP4'}
-          title={isRecording ? 'Stop' : 'Record MP4'}
-        >
-          {isRecording ? (
-            <>
-              <span className="rec-dot" />
-              <span className="rail-time">{formatElapsed(recordElapsed)}</span>
-            </>
-          ) : (
-            'mp4'
-          )}
-        </button>
-        <button
-          className={isGifRecording ? 'rail-btn recording' : 'rail-btn'}
-          onClick={onToggleGif}
-          disabled={source === 'none' || isRecording || gifProgress > 0}
-          aria-label={isGifRecording ? 'Stop GIF' : 'Record GIF'}
-          title={isGifRecording ? 'Stop' : 'Record GIF'}
-        >
-          {isGifRecording ? (
-            <>
-              <span className="rec-dot" />
-              <span className="rail-time">{formatElapsed(gifElapsed)}</span>
-            </>
-          ) : gifProgress > 0 ? (
-            `${Math.round(gifProgress * 100)}%`
-          ) : (
-            'gif'
-          )}
-        </button>
-      </nav>
-
-      {/* Detail panel — hidden when the sidebar is collapsed (the whole
-          sidebar grid cell shrinks to just the rail width). */}
       <div className="controls-panel">
       <header className="controls-header">
         <h1>ascii-cam</h1>
