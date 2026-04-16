@@ -138,21 +138,31 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
     const gifStartRef = useRef<number>(0);
 
     // ---- Resize the output canvas to fill its parent ----
-    // Canvas is sneaky: the CSS size and the drawing buffer size are
-    // two different things. We sync them here, and again on window resize.
+    // Canvas is sneaky: the CSS size and the drawing buffer size are two
+    // different things. Use ResizeObserver on the parent so we also catch
+    // layout changes that don't move the window — like the sidebar
+    // collapsing/expanding. Skip the assignment when dimensions haven't
+    // actually changed, since setting them clears the bitmap.
     useEffect(() => {
+      const canvas = outputRef.current;
+      if (!canvas) return;
+      const parent = canvas.parentElement;
+      if (!parent) return;
+
       const sync = () => {
-        const canvas = outputRef.current;
-        if (!canvas) return;
-        const parent = canvas.parentElement;
-        if (!parent) return;
-        canvas.width = parent.clientWidth;
-        canvas.height = parent.clientHeight;
-        prevPixelsRef.current = null;
+        const w = parent.clientWidth;
+        const h = parent.clientHeight;
+        if (w === 0 || h === 0) return;
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+          prevPixelsRef.current = null;
+        }
       };
       sync();
-      window.addEventListener('resize', sync);
-      return () => window.removeEventListener('resize', sync);
+      const observer = new ResizeObserver(sync);
+      observer.observe(parent);
+      return () => observer.disconnect();
     }, []);
 
     // ---- Webcam lifecycle: start when source='webcam', stop otherwise ----

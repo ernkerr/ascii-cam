@@ -41,6 +41,12 @@ export default function App() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Sidebar open/closed. Default: open on desktop, closed on mobile.
+  // Only evaluated once on mount; after that the user drives it via the toggle.
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth > 640 : true,
+  );
+
   // Recording state lives here (not inside AsciiCanvas) so the Record button
   // in the sidebar can render the current elapsed time and label.
   const [isRecording, setIsRecording] = useState(false);
@@ -145,7 +151,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app">
+    <div className={`app ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
       <Controls
         options={options}
         setOptions={setOptions}
@@ -160,6 +166,8 @@ export default function App() {
         isGifRecording={isGifRecording}
         gifElapsed={gifElapsed}
         gifProgress={gifProgress}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((o) => !o)}
       />
 
       <main className="stage" style={{ background: options.background }}>
