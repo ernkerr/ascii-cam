@@ -280,46 +280,5 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
     output.fillText(line, 0, y * charHeight);
   }
 
-  // ---- Watermark ----
-  // A thin dark band along the bottom of the VISIBLE region with the
-  // watermark text riding inside it. Subtle but always legible, regardless
-  // of what colors the user picked, and included in portrait/landscape
-  // exports because it lives inside the visible region.
-  const region = getVisibleRegion(
-    outputCanvas.width,
-    outputCanvas.height,
-    opts.fontSize,
-    opts.orientation,
-  );
-
-  // 22px band with a ~6px soft fade-in on its top edge so it doesn't land
-  // as a hard black line over the ASCII. Solid ~85% black below the fade
-  // so text on it is always legible.
-  const bandHeight = 32;
-  const bandTop = region.y + region.height - bandHeight;
-  const softEdge = 18 / bandHeight;
-  const fade = output.createLinearGradient(0, bandTop, 0, region.y + region.height);
-  fade.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  fade.addColorStop(softEdge, 'rgba(0, 0, 0, 0.85)');
-  fade.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
-  output.fillStyle = fade;
-  output.fillRect(region.x, bandTop, region.width, bandHeight);
-
-  // Watermark text, vertically centered in the band, right-aligned.
-  const watermark = 'ascii-cam.com';
-  const wmSize = 11;
-  const wmMargin = 10;
-  output.font = `${wmSize}px ui-monospace, 'JetBrains Mono', Menlo, monospace`;
-  output.textBaseline = 'bottom';
-  output.fillStyle = opts.color;
-  output.globalAlpha = 1;
-  const wmWidth = output.measureText(watermark).width;
-  // Anchor to the bottom of the band with a small margin — sits in the
-  // solid portion below the fade.
-  output.fillText(
-    watermark,
-    region.x + region.width - wmWidth - wmMargin,
-    bandTop + bandHeight - 5,
-  );
-  output.globalAlpha = 1;
+  // No watermark — kept on the `watermark` branch if you want it back.
 }
