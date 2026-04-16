@@ -105,6 +105,14 @@
   gap: 8px;
 }
 
+/* Stacked vertically but half-width — same column width as .button-row */
+.button-stack-half {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: calc(50% - 4px);
+}
+
 .full-width { width: 100%; margin-top: 8px; }
 
 /* ---- Form inputs ---- */
@@ -160,15 +168,6 @@ input[type='range'] {
   accent-color: var(--accent);
 }
 
-/* ---- Toggles ---- */
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.toggle input { accent-color: var(--accent); }
 
 /* ---- Stage (the canvas area) ---- */
 .stage {

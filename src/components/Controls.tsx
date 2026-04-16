@@ -149,8 +149,11 @@ export function Controls({
 
         <Slider
           label="Contrast"
+          // -1 = very flat/gray, 0 = neutral, 2 = near-binary.
+          // Wider-than-unit range lets the slider push into heavy contrast
+          // without the formula blowing up (see asciiConverter.ts).
           min={-1}
-          max={1}
+          max={2}
           step={0.01}
           value={options.contrast}
           onChange={(v) => update('contrast', v)}
@@ -179,22 +182,26 @@ export function Controls({
       {/* ---- TOGGLES ---- */}
       <section className="control-group">
         <h2>Options</h2>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={options.mirror}
-            onChange={(e) => update('mirror', e.target.checked)}
-          />
-          Mirror
-        </label>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={options.invert}
-            onChange={(e) => update('invert', e.target.checked)}
-          />
-          Invert
-        </label>
+        {/* Stacked vertically but constrained to half the sidebar width,
+            matching the width they'd have in a 2-up button-row. */}
+        <div className="button-stack-half">
+          <button
+            type="button"
+            aria-pressed={options.mirror}
+            className={options.mirror ? 'btn active' : 'btn'}
+            onClick={() => update('mirror', !options.mirror)}
+          >
+            Mirror
+          </button>
+          <button
+            type="button"
+            aria-pressed={options.invert}
+            className={options.invert ? 'btn active' : 'btn'}
+            onClick={() => update('invert', !options.invert)}
+          >
+            Invert
+          </button>
+        </div>
       </section>
 
       {/* ---- ACTIONS ---- */}

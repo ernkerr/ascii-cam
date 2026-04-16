@@ -125,11 +125,9 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
         if (!canvas) return;
         const parent = canvas.parentElement;
         if (!parent) return;
-        // devicePixelRatio would give sharper text on retina, but costs CPU.
-        // For ASCII, crispness is already baked into the font, so skip.
         canvas.width = parent.clientWidth;
         canvas.height = parent.clientHeight;
-        prevPixelsRef.current = null; // buffer size likely changed
+        prevPixelsRef.current = null;
       };
       sync();
       window.addEventListener('resize', sync);
@@ -206,7 +204,6 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
         }
 
         if (src) {
-          // Render a frame. All the work lives in utils/asciiConverter.ts.
           renderAscii(
             { source: src, processingCanvas: processing, outputCanvas: output },
             optionsRef.current,

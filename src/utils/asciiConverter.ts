@@ -64,11 +64,11 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
 
   // ---- Draw the source onto the hidden canvas ----
-  // `save`/`restore` let us temporarily transform the canvas (for mirroring)
-  // without leaving the transform set for future draws.
+  // Stretch source to fill the character grid. Fast and simple;
+  // distorts aspect ratio but matches the original project's behavior.
   processing.save();
   if (opts.mirror) {
-    // Flip horizontally: move the origin to the right edge, then negate X scale.
+    // Flip horizontally: move origin to the right edge, then negate X scale.
     processing.translate(cols, 0);
     processing.scale(-1, 1);
   }
@@ -80,12 +80,15 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   const { data } = processing.getImageData(0, 0, cols, rows);
 
   // ---- Pre-compute contrast math (do it once, not per-pixel) ----
-  // Standard contrast formula. `c` in [-1, 1]:
-  //   c = 0  → factor = 1   (no change)
-  //   c > 0  → factor > 1   (stretch values away from 128, more contrast)
-  //   c < 0  → factor < 1   (squish values toward 128, flatter image)
-  const c = opts.contrast;
-  const contrastFactor = (259 * (c * 255 + 255)) / (255 * (259 - c * 255));
+  // Power-curve contrast. We use 2^(3c) instead of the classic GIMP
+  // formula because the classic one has a pole at c=1 (division by zero)
+  // — it literally can't expose more than the range (-1, 1). This one:
+  //   c = -1 → factor = 0.125 (very flat/gray)
+  //   c =  0 → factor = 1     (neutral)
+  //   c =  1 → factor = 8     (strong)
+  //   c =  2 → factor = 64    (near-binary)
+  // Stays smooth and well-defined throughout, so we can widen the slider.
+  const contrastFactor = Math.pow(2, opts.contrast * 3);
 
   // Brightness is a simple additive shift: -255 .. +255
   const brightnessOffset = opts.brightness * 255;
