@@ -29,16 +29,44 @@ export const GIF_MAX_SECONDS = 15;
 // Aspect ratio is preserved — only scales down if the canvas is wider.
 const GIF_MAX_WIDTH = 640;
 
-// Tiny helper: given a URL (data: or blob:), prompt the browser to download
-// it as a file. We reuse this for screenshots and video exports.
-function triggerDownload(url: string, filename: string) {
+// Save a Blob as a file. On iOS, `<a download>` dumps into the Files app
+// and the user has to manually share → Save to Photos. Using the Web Share
+// API instead pops the native share sheet with "Save Image" / "Save Video"
+// as one-tap options that route to Photos.
+//
+// Fallback order:
+//   1. navigator.share({ files }) — iOS/Android share sheet (covers Photos)
+//   2. <a download> — desktop and any browser without the share API
+async function saveFile(blob: Blob, filename: string) {
+  const file = new File([blob], filename, { type: blob.type });
+
+  // canShare with files is the feature detect — `share` alone isn't enough,
+  // since some platforms support share for text/URL but not files.
+  const canSharefiles =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [file] });
+
+  if (canSharefiles) {
+    try {
+      await navigator.share({ files: [file] });
+      return;
+    } catch (err) {
+      // AbortError = user dismissed the share sheet. Don't fall through to
+      // downloading, or we'd still save a file they chose not to save.
+      if ((err as Error)?.name === 'AbortError') return;
+      // Other errors (e.g. gesture context lost): fall through to download.
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
-  // Firefox requires the link be in the DOM before click() works.
   document.body.appendChild(a);
   a.click();
   a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // This is the "remote control" parents can use on us via a ref.
@@ -322,9 +350,13 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
           region.x, region.y, region.width, region.height,
           0, 0, exportCanvas.width, exportCanvas.height,
         );
-        const url = exportCanvas.toDataURL('image/png');
-        triggerDownload(url, `ascii-cam-${Date.now()}.png`);
-        onExport?.('png');
+        // toBlob (not toDataURL) so saveFile can build a File for the
+        // share sheet. It's async but we're still inside the user's click.
+        exportCanvas.toBlob((blob) => {
+          if (!blob) return;
+          saveFile(blob, `ascii-cam-${Date.now()}.png`);
+          onExport?.('png');
+        }, 'image/png');
       },
 
       // Record the visible canvas to a video file.
@@ -379,9 +411,7 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
           const type = recorder.mimeType || mime || 'video/webm';
           const blob = new Blob(chunks, { type });
           const ext = type.includes('mp4') ? 'mp4' : 'webm';
-          const url = URL.createObjectURL(blob);
-          triggerDownload(url, `ascii-cam-${Date.now()}.${ext}`);
-          URL.revokeObjectURL(url);
+          saveFile(blob, `ascii-cam-${Date.now()}.${ext}`);
           recorderRef.current = null;
           // Drop the record canvas so the render loop stops the per-frame copy.
           recordCanvasRef.current = null;
@@ -520,9 +550,7 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
       gif.on('progress', (p: number) => onGifProgress?.(p));
       gif.on('finished', (blob: Blob) => {
         onGifProgress?.(1);
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url, `ascii-cam-${Date.now()}.gif`);
-        URL.revokeObjectURL(url);
+        saveFile(blob, `ascii-cam-${Date.now()}.gif`);
         setTimeout(() => onGifProgress?.(0), 500);
         onExport?.('gif');
       });

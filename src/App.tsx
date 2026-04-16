@@ -34,12 +34,9 @@ const DEFAULT_OPTIONS: AsciiOptions = {
 
 export default function App() {
   const [options, setOptions] = useState<AsciiOptions>(DEFAULT_OPTIONS);
-  // Start with no source selected. If the user's already granted camera
-  // permission (persisted from a prior visit), we'll auto-promote to 'webcam'
-  // via the effect below. Otherwise we show the welcome screen and wait for
-  // an explicit tap — important on mobile Safari, which re-prompts every
-  // session and would otherwise nag on every visit.
-  const [source, setSource] = useState<SourceKind>('none');
+  // Default to webcam — browser will prompt if needed, or skip the prompt
+  // if permission's already persisted (normal case on desktop).
+  const [source, setSource] = useState<SourceKind>('webcam');
   // When the user uploads a file, we turn it into an object URL
   // (a blob-backed string URL) so <img> can load it without re-encoding.
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -66,22 +63,6 @@ export default function App() {
 
   // Thanks modal: show after any successful export.
   const [showThanks, setShowThanks] = useState(false);
-
-  // Auto-start webcam ONLY if permission is already granted (no prompt needed).
-  // If the user has to be prompted, we wait for them to tap the Webcam button —
-  // avoids the "nag on every visit" problem on mobile Safari.
-  useEffect(() => {
-    const permissions = navigator.permissions;
-    if (!permissions?.query) return;
-    permissions
-      .query({ name: 'camera' as PermissionName })
-      .then((result) => {
-        if (result.state === 'granted') setSource('webcam');
-      })
-      .catch(() => {
-        // Permissions API not supported for 'camera' here — stay on welcome.
-      });
-  }, []);
 
   // Ref into the canvas component so we can call its screenshot() method.
   const canvasRef = useRef<AsciiCanvasHandle>(null);
