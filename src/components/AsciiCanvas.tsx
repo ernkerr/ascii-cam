@@ -40,9 +40,16 @@ const GIF_MAX_WIDTH = 640;
 async function saveFile(blob: Blob, filename: string) {
   const file = new File([blob], filename, { type: blob.type });
 
-  // canShare with files is the feature detect — `share` alone isn't enough,
-  // since some platforms support share for text/URL but not files.
+  // Only use the share sheet on touch devices. Desktop Chrome exposes the
+  // same API but its share sheet is awkward (gmail-only, etc.) and steals
+  // the normal download behavior users expect.
+  const isTouch =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches;
+
   const canSharefiles =
+    isTouch &&
     typeof navigator !== 'undefined' &&
     typeof navigator.canShare === 'function' &&
     navigator.canShare({ files: [file] });
@@ -59,6 +66,7 @@ async function saveFile(blob: Blob, filename: string) {
     }
   }
 
+  // Desktop + fallback path: classic download link.
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -274,11 +282,17 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
         }
 
         if (src) {
+          // Webcam: cover + slim (immersive framing).
+          // Uploaded images: contain (preserve aspect, letterbox with black bars).
+          const fitMode =
+            sourceRef.current === 'webcam' ? 'cover' : 'contain';
+
           renderAscii(
             {
               source: src,
               sourceWidth: srcW,
               sourceHeight: srcH,
+              fitMode,
               processingCanvas: processing,
               outputCanvas: output,
             },

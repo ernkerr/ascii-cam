@@ -84,6 +84,10 @@ export interface RenderTargets {
   source: CanvasImageSource;               // a <video> or <img> element
   sourceWidth: number;                     // intrinsic width  (0 = unknown)
   sourceHeight: number;                    // intrinsic height (0 = unknown)
+  // How the source should be fit into the visible region:
+  //   'cover'   → fill the region, crop source edges (webcam, immersive)
+  //   'contain' → preserve source aspect, pad outside with literal black bars
+  fitMode: 'cover' | 'contain';
   processingCanvas: HTMLCanvasElement;     // hidden, character-sized
   outputCanvas: HTMLCanvasElement;         // visible, pixel-sized
 }
@@ -101,6 +105,7 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
     source,
     sourceWidth,
     sourceHeight,
+    fitMode,
     processingCanvas,
     outputCanvas,
   } = targets;
@@ -135,98 +140,100 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
 
   // ---- Draw the source onto the hidden canvas ----
-  // Pipeline:
-  //   1. Pick a source sub-rect slightly *wider* than canvas aspect, so
-  //      squeezing it into the canvas width produces the slim effect
-  //      WITHOUT visible side bars.
-  //   2. Draw to a full-width, zoom-reduced-height destination, centered
-  //      vertically. Bars appear only on top & bottom.
-  //
-  // "Slim target aspect" = canvas aspect / SLIM_FACTOR. Roughly 4% wider
-  // than canvas aspect — the extra horizontal source content gets
-  // compressed on render, which reads as thinner.
+  // Char cells aren't square (charWidth = 0.6 * charHeight), so a region of
+  // N chars × M chars renders at pixel aspect (N * 0.6) / M. Any aspect
+  // comparisons involving source pixels have to account for this.
+  const CHAR_WH_RATIO = 0.6;
   const haveDims = sourceWidth > 0 && sourceHeight > 0;
 
+  // Start with a blank fill. Outside the rect we draw into stays blank,
+  // which maps to space chars after the ASCII conversion.
   processing.fillStyle = opts.invert ? '#000000' : '#ffffff';
   processing.fillRect(0, 0, cols, rows);
 
+  // Visible region in char coords (orientation-aware). Matches the pixel
+  // math in getVisibleRegion() exactly — cropping happens to the sub-rect
+  // defined by this region.
+  let regionX = 0, regionY = 0, regionW = cols, regionH = rows;
+  if (opts.orientation === 'portrait') {
+    regionW = Math.min(cols, rows * (3 / 4));
+    regionX = (cols - regionW) / 2;
+  } else if (opts.orientation === 'landscape') {
+    regionH = Math.min(rows, cols * (9 / 16));
+    regionY = (rows - regionH) / 2;
+  }
+
+  // Source sub-rect + destination rect (both will fill in below based on fitMode).
   let sx = 0, sy = 0, sw = sourceWidth, sh = sourceHeight;
+  let dx = regionX, dy = regionY, dw = regionW, dh = regionH;
+
   if (haveDims) {
     const srcAspect = sourceWidth / sourceHeight;
-    const canvasAspect = cols / rows;
-    const slimAspect = canvasAspect / SLIM_FACTOR;
+    const regionCharAspect = regionW / regionH;
+    const regionPxAspect = regionCharAspect * CHAR_WH_RATIO;
 
-    if (srcAspect >= slimAspect) {
-      // Source is wide enough to support the slim crop — take full height
-      // and a slim-aspect-wide slice centered horizontally.
-      sh = sourceHeight;
-      sw = sourceHeight * slimAspect;
-      sx = (sourceWidth - sw) / 2;
-      sy = 0;
-    } else {
-      // Source isn't that wide. Take full width + a proportional height
-      // slice. Slim effect is reduced but nothing distorts badly.
-      sw = sourceWidth;
-      sh = sourceWidth / slimAspect;
-      if (sh > sourceHeight) {
-        // Even the slim-aspect height exceeds the source — fall back to
-        // simple cover (no slim) rather than produce a bad crop.
+    if (fitMode === 'cover') {
+      // Cover + subtle slim: fill the region with a slightly-wider-than-
+      // needed source slice, which squeezes horizontally to a ~4% thinner
+      // rendered face.
+      const slimPxAspect = regionPxAspect / SLIM_FACTOR;
+      if (srcAspect >= slimPxAspect) {
         sh = sourceHeight;
-        sw = sourceHeight * canvasAspect;
-        if (sw > sourceWidth) sw = sourceWidth;
+        sw = sh * slimPxAspect;
         sx = (sourceWidth - sw) / 2;
+        sy = 0;
       } else {
-        sx = 0;
-        sy = (sourceHeight - sh) / 2;
+        sw = sourceWidth;
+        sh = sw / slimPxAspect;
+        if (sh > sourceHeight) {
+          sh = sourceHeight;
+          sw = sh * regionPxAspect;
+          if (sw > sourceWidth) sw = sourceWidth;
+          sx = (sourceWidth - sw) / 2;
+        } else {
+          sx = 0;
+          sy = (sourceHeight - sh) / 2;
+        }
       }
+      dx = regionX; dy = regionY; dw = regionW; dh = regionH;
+    } else {
+      // Contain: preserve source's pixel aspect inside the region, letterbox
+      // the rest. destCharAspect = srcAspect / CHAR_WH_RATIO because rendering
+      // squishes the char-coord rectangle horizontally by CHAR_WH_RATIO.
+      const destCharAspect = srcAspect / CHAR_WH_RATIO;
+      if (destCharAspect >= regionCharAspect) {
+        // Dest proportionally wider than region → fit by width, pad top/bottom.
+        dw = regionW;
+        dh = dw / destCharAspect;
+      } else {
+        // Dest proportionally taller → fit by height, pad sides.
+        dh = regionH;
+        dw = dh * destCharAspect;
+      }
+      dx = regionX + (regionW - dw) / 2;
+      dy = regionY + (regionH - dh) / 2;
+      // Whole source, no crop.
+      sx = 0; sy = 0; sw = sourceWidth; sh = sourceHeight;
     }
   }
 
-  // Destination: full canvas, edge to edge.
   processing.save();
   if (opts.mirror) {
     processing.translate(cols, 0);
     processing.scale(-1, 1);
   }
   if (haveDims) {
-    processing.drawImage(source, sx, sy, sw, sh, 0, 0, cols, rows);
+    processing.drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh);
   } else {
-    // First-frame fallback: stretch whole source to the canvas.
-    processing.drawImage(source, 0, 0, cols, rows);
+    // First-frame fallback: stretch whole source to the destination rect.
+    processing.drawImage(source, dx, dy, dw, dh);
   }
   processing.restore();
 
-  // ---- Orientation bars ----
-  // Paint "blank" bars on top of the drawn source to crop the visible region.
-  // Bar color maps to a space character after luminosity + invert, so on the
-  // dark canvas it reads as a true black bar.
-  //
-  // Direction is hardcoded per orientation (user expects portrait = side
-  // bars, landscape = top/bottom bars, regardless of window aspect ratio).
-  // Aspects were chosen so bars stay visible on typical wide windows:
-  //   portrait  3:4     → side bars on anything wider than 3:4
-  //   landscape 16:9    → top/bottom bars on anything narrower than 16:9
-  if (opts.orientation !== 'auto') {
-    processing.fillStyle = opts.invert ? '#000000' : '#ffffff';
-
-    if (opts.orientation === 'portrait') {
-      // Visible region is 3:4 tall, centered. Bars fill the sides.
-      const visibleW = rows * (3 / 4);
-      const barW = Math.max(0, (cols - visibleW) / 2);
-      if (barW > 0) {
-        processing.fillRect(0, 0, barW, rows);
-        processing.fillRect(cols - barW, 0, barW, rows);
-      }
-    } else {
-      // Landscape: visible region is 16:9 wide, centered. Bars on top/bottom.
-      const visibleH = cols * (9 / 16);
-      const barH = Math.max(0, (rows - visibleH) / 2);
-      if (barH > 0) {
-        processing.fillRect(0, 0, cols, barH);
-        processing.fillRect(0, rows - barH, cols, barH);
-      }
-    }
-  }
+  // Note: we only draw source into the (dx,dy,dw,dh) region; everything
+  // outside (letterbox + orientation bars) stays blank from the initial
+  // fillRect above. For 'contain' mode we overpaint those areas with literal
+  // black further below so they're not affected by the user's bg color.
 
   // Grab the pixels. `data` is a flat array: [R,G,B,A, R,G,B,A, ...]
   // so pixel at (x,y) starts at index (y*cols + x) * 4.
@@ -286,4 +293,31 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
 
   // No watermark — kept on the `watermark` branch if you want it back.
+
+  // ---- Contain-mode letterbox ----
+  // For images we preserve aspect ratio, which means letterbox areas
+  // appear outside the rendered rect. User wants those to be LITERAL black
+  // (not the canvas bg color that space-chars would pick up). Paint them on
+  // top of the output canvas in pixel coords, using the dest rect we
+  // computed above to mask out the image area.
+  if (fitMode === 'contain' && haveDims) {
+    const dxPx = dx * charWidth;
+    const dyPx = dy * charHeight;
+    const dwPx = dw * charWidth;
+    const dhPx = dh * charHeight;
+    const W = outputCanvas.width;
+    const H = outputCanvas.height;
+
+    output.fillStyle = '#000000';
+    // Left of image
+    if (dxPx > 0) output.fillRect(0, 0, dxPx, H);
+    // Right of image
+    const rightX = dxPx + dwPx;
+    if (rightX < W) output.fillRect(rightX, 0, W - rightX, H);
+    // Above image (only within image's horizontal span)
+    if (dyPx > 0) output.fillRect(dxPx, 0, dwPx, dyPx);
+    // Below image
+    const bottomY = dyPx + dhPx;
+    if (bottomY < H) output.fillRect(dxPx, bottomY, dwPx, H - bottomY);
+  }
 }
