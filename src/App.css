@@ -67,6 +67,38 @@
 }
 .btn.primary:hover { filter: brightness(1.1); }
 
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn.record {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn.record.recording {
+  border-color: #ff3b3b;
+  color: #ff6666;
+}
+.rec-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff3b3b;
+}
+.rec-dot.idle { background: #666; }
+.btn.record.recording .rec-dot {
+  /* Pulse while recording — pure CSS, no JS needed. */
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(0.75); }
+}
+
 .button-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

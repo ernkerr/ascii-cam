@@ -20,6 +20,17 @@ interface Props {
   onPickWebcam: () => void;
   onPickImage: (file: File) => void;
   onScreenshot: () => void;
+  onToggleRecord: () => void;
+  isRecording: boolean;
+  recordElapsed: number; // milliseconds
+}
+
+// Formats a millisecond count as m:ss, e.g. "0:04" — for the record timer.
+function formatElapsed(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export function Controls({
@@ -29,6 +40,9 @@ export function Controls({
   onPickWebcam,
   onPickImage,
   onScreenshot,
+  onToggleRecord,
+  isRecording,
+  recordElapsed,
 }: Props) {
   // Tiny helper: update ONE field of options. Saves repeating the spread.
   const update = <K extends keyof AsciiOptions>(key: K, value: AsciiOptions[K]) =>
@@ -142,10 +156,10 @@ export function Controls({
           onChange={(v) => update('brightness', v)}
         />
         <Slider
-          label="Resolution"
-          // Smaller fontSize = more characters = more detail.
-          // Shown to users as "Resolution" — bigger number feels like more.
-          // We invert the display by letting the slider go 6..28 for fontSize.
+          label="Char size"
+          // fontSize in pixels. Smaller = more characters on screen = more detail.
+          // 6..28 feels best — below 6 the glyphs get muddy; above 28 they're
+          // so chunky the image is barely recognizable.
           min={6}
           max={28}
           step={1}
@@ -177,9 +191,31 @@ export function Controls({
 
       {/* ---- ACTIONS ---- */}
       <section className="control-group">
-        <button className="btn primary" onClick={onScreenshot}>
-          Save PNG
-        </button>
+        <div className="button-row">
+          <button
+            className={isRecording ? 'btn record recording' : 'btn record'}
+            onClick={onToggleRecord}
+            // Source required before the canvas has anything to record.
+            disabled={source === 'none'}
+          >
+            {isRecording ? (
+              <>
+                <span className="rec-dot" /> Stop {formatElapsed(recordElapsed)}
+              </>
+            ) : (
+              <>
+                <span className="rec-dot idle" /> Record
+              </>
+            )}
+          </button>
+          <button
+            className="btn primary"
+            onClick={onScreenshot}
+            disabled={source === 'none'}
+          >
+            Save PNG
+          </button>
+        </div>
       </section>
     </aside>
   );

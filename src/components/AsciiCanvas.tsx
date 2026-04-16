@@ -16,10 +16,26 @@ import {
 import type { AsciiOptions, SourceKind } from '../types';
 import { renderAscii } from '../utils/asciiConverter';
 
+// Tiny helper: given a URL (data: or blob:), prompt the browser to download
+// it as a file. We reuse this for screenshots and video exports.
+function triggerDownload(url: string, filename: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  // Firefox requires the link be in the DOM before click() works.
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 // This is the "remote control" parents can use on us via a ref.
-// Right now it just exposes one action: take a screenshot.
+// screenshot    → save current frame as PNG
+// startRecording → begin capturing the canvas to a video blob
+// stopRecording  → finalize + trigger download
 export interface AsciiCanvasHandle {
   screenshot: () => void;
+  startRecording: () => void;
+  stopRecording: () => void;
 }
 
 interface Props {
@@ -58,6 +74,10 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
     // For temporal smoothing (pixel LP filter across frames).
     // We keep last frame's *smoothed* pixel values and blend new frames in.
     const prevPixelsRef = useRef<Float32Array | null>(null);
+
+    // MediaRecorder state — null when not recording.
+    // We keep it in a ref (not state) because changing it shouldn't re-render.
+    const recorderRef = useRef<MediaRecorder | null>(null);
 
     // ---- Resize the output canvas to fill its parent ----
     // Canvas is sneaky: the CSS size and the drawing buffer size are
@@ -160,23 +180,75 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
       };
 
       rafId = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(rafId);
+      return () => {
+        cancelAnimationFrame(rafId);
+        // Safety: if we unmount mid-recording, stop the recorder so we
+        // don't leak a MediaStream or the blob we'd never finalize.
+        recorderRef.current?.stop();
+      };
     }, []);
 
-    // ---- Imperative handle: expose screenshot() to the parent via ref ----
-    // The PNG literally IS the output canvas — toDataURL serializes it for us.
+    // ---- Imperative handle: expose methods to the parent via ref ----
     useImperativeHandle(ref, () => ({
+      // The PNG literally IS the output canvas — toDataURL serializes it for us.
       screenshot: () => {
         const canvas = outputRef.current;
         if (!canvas) return;
         const url = canvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ascii-cam-${Date.now()}.png`;
-        // Firefox requires the link be in the DOM before click() works.
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        triggerDownload(url, `ascii-cam-${Date.now()}.png`);
+      },
+
+      // Record the visible canvas to a video file.
+      // canvas.captureStream(fps) turns the canvas into a live MediaStream,
+      // which MediaRecorder can encode on the fly. We collect chunks,
+      // and on stop we glue them into a Blob and trigger a download.
+      startRecording: () => {
+        const canvas = outputRef.current;
+        if (!canvas || recorderRef.current) return;
+
+        const stream = canvas.captureStream(30); // 30 fps
+
+        // Prefer MP4 (universal player support) over WebM. Color fidelity on
+        // saturated neon shifts slightly under H.264 chroma subsampling, but
+        // MP4 is what people expect — webm won't open in iMessage, Photos, etc.
+        const candidates = [
+          'video/mp4;codecs=h264',
+          'video/mp4',
+          'video/webm;codecs=vp9',
+          'video/webm;codecs=vp8',
+          'video/webm',
+        ];
+        const mime = candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? '';
+        // Bump bitrate to 8 Mbps so saturated colors (neon green on black!)
+        // don't smear under chroma subsampling. Defaults are ~2.5 Mbps.
+        const recorder = new MediaRecorder(stream, {
+          ...(mime ? { mimeType: mime } : {}),
+          videoBitsPerSecond: 8_000_000,
+        });
+
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (e) => {
+          // e.data is a Blob chunk. Skip empty ones (happen on some browsers).
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+        recorder.onstop = () => {
+          const type = recorder.mimeType || mime || 'video/webm';
+          const blob = new Blob(chunks, { type });
+          const ext = type.includes('mp4') ? 'mp4' : 'webm';
+          const url = URL.createObjectURL(blob);
+          triggerDownload(url, `ascii-cam-${Date.now()}.${ext}`);
+          URL.revokeObjectURL(url);
+          recorderRef.current = null;
+        };
+        // start() with no args buffers everything; we also pass a timeslice
+        // so dataavailable fires periodically (safer for long recordings).
+        recorder.start(1000);
+        recorderRef.current = recorder;
+      },
+
+      stopRecording: () => {
+        // The onstop handler above does the actual download.
+        recorderRef.current?.stop();
       },
     }));
 
