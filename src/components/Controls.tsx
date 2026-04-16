@@ -23,6 +23,10 @@ interface Props {
   onToggleRecord: () => void;
   isRecording: boolean;
   recordElapsed: number; // milliseconds
+  onToggleGif: () => void;
+  isGifRecording: boolean;
+  gifElapsed: number;
+  gifProgress: number; // 0..1 during post-stop encoding
 }
 
 // Formats a millisecond count as m:ss, e.g. "0:04" — for the record timer.
@@ -43,6 +47,10 @@ export function Controls({
   onToggleRecord,
   isRecording,
   recordElapsed,
+  onToggleGif,
+  isGifRecording,
+  gifElapsed,
+  gifProgress,
 }: Props) {
   // Tiny helper: update ONE field of options. Saves repeating the spread.
   const update = <K extends keyof AsciiOptions>(key: K, value: AsciiOptions[K]) =>
@@ -195,8 +203,9 @@ export function Controls({
           <button
             className={isRecording ? 'btn record recording' : 'btn record'}
             onClick={onToggleRecord}
-            // Source required before the canvas has anything to record.
-            disabled={source === 'none'}
+            // Disable if no source, OR if GIF is already capturing
+            // (one recorder at a time keeps the CPU cost predictable).
+            disabled={source === 'none' || isGifRecording}
           >
             {isRecording ? (
               <>
@@ -204,18 +213,37 @@ export function Controls({
               </>
             ) : (
               <>
-                <span className="rec-dot idle" /> Record
+                <span className="rec-dot idle" /> MP4
               </>
             )}
           </button>
           <button
-            className="btn primary"
-            onClick={onScreenshot}
-            disabled={source === 'none'}
+            className={isGifRecording ? 'btn record recording' : 'btn record'}
+            onClick={onToggleGif}
+            disabled={source === 'none' || isRecording || gifProgress > 0}
           >
-            Save PNG
+            {isGifRecording ? (
+              <>
+                <span className="rec-dot" /> Stop {formatElapsed(gifElapsed)}
+              </>
+            ) : gifProgress > 0 ? (
+              // gif.js is encoding. Show percent so "nothing happening"
+              // doesn't look broken — encoding a 10s GIF can take several seconds.
+              <>Encoding {Math.round(gifProgress * 100)}%</>
+            ) : (
+              <>
+                <span className="rec-dot idle" /> GIF
+              </>
+            )}
           </button>
         </div>
+        <button
+          className="btn primary full-width"
+          onClick={onScreenshot}
+          disabled={source === 'none'}
+        >
+          Save PNG
+        </button>
       </section>
     </aside>
   );

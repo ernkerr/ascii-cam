@@ -31,7 +31,9 @@ const DEFAULT_OPTIONS: AsciiOptions = {
 
 export default function App() {
   const [options, setOptions] = useState<AsciiOptions>(DEFAULT_OPTIONS);
-  const [source, setSource] = useState<SourceKind>('none');
+  // Default to webcam — browser will prompt for permission on load.
+  // If the user denies, they'll see the error toast and can click Upload instead.
+  const [source, setSource] = useState<SourceKind>('webcam');
   // When the user uploads a file, we turn it into an object URL
   // (a blob-backed string URL) so <img> can load it without re-encoding.
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -42,6 +44,13 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordStart, setRecordStart] = useState<number | null>(null);
   const [recordElapsed, setRecordElapsed] = useState(0);
+
+  // Same pattern for GIF — tracked separately because you can't record
+  // MP4 and GIF at the same time, and GIF has a post-stop encoding phase.
+  const [isGifRecording, setIsGifRecording] = useState(false);
+  const [gifStart, setGifStart] = useState<number | null>(null);
+  const [gifElapsed, setGifElapsed] = useState(0);
+  const [gifProgress, setGifProgress] = useState(0);
 
   // Ref into the canvas component so we can call its screenshot() method.
   const canvasRef = useRef<AsciiCanvasHandle>(null);
@@ -55,6 +64,15 @@ export default function App() {
     }, 500);
     return () => clearInterval(id);
   }, [isRecording, recordStart]);
+
+  // Same timer for GIF.
+  useEffect(() => {
+    if (!isGifRecording || gifStart === null) return;
+    const id = setInterval(() => {
+      setGifElapsed(Date.now() - gifStart);
+    }, 500);
+    return () => clearInterval(id);
+  }, [isGifRecording, gifStart]);
 
   const handlePickWebcam = useCallback(() => {
     setErrorMsg(null);
@@ -90,6 +108,31 @@ export default function App() {
     }
   }, [isRecording]);
 
+  const handleToggleGif = useCallback(() => {
+    if (isGifRecording) {
+      canvasRef.current?.stopGifRecording();
+      setIsGifRecording(false);
+      setGifStart(null);
+      setGifElapsed(0);
+      // gifProgress will be driven by the onGifProgress callback now
+      // (encoding happens AFTER stop, off the main thread).
+    } else {
+      canvasRef.current?.startGifRecording();
+      setIsGifRecording(true);
+      setGifStart(Date.now());
+      setGifElapsed(0);
+      setGifProgress(0);
+    }
+  }, [isGifRecording]);
+
+  // When the canvas auto-stops GIF recording at the 15s cap, it calls this.
+  // We just sync React state — the encode is already underway.
+  const handleGifAutoStop = useCallback(() => {
+    setIsGifRecording(false);
+    setGifStart(null);
+    setGifElapsed(0);
+  }, []);
+
   return (
     <div className="app">
       <Controls
@@ -102,6 +145,10 @@ export default function App() {
         onToggleRecord={handleToggleRecord}
         isRecording={isRecording}
         recordElapsed={recordElapsed}
+        onToggleGif={handleToggleGif}
+        isGifRecording={isGifRecording}
+        gifElapsed={gifElapsed}
+        gifProgress={gifProgress}
       />
 
       <main className="stage" style={{ background: options.background }}>
@@ -117,6 +164,8 @@ export default function App() {
             imageSrc={imageSrc}
             options={options}
             onError={setErrorMsg}
+            onGifProgress={setGifProgress}
+            onGifAutoStop={handleGifAutoStop}
           />
         )}
         {errorMsg && <div className="error-toast">{errorMsg}</div>}

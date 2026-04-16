@@ -105,6 +105,8 @@
   gap: 8px;
 }
 
+.full-width { width: 100%; margin-top: 8px; }
+
 /* ---- Form inputs ---- */
 select, .text-input {
   background: var(--panel-2);
