@@ -1,0 +1,191 @@
+/* ============================================================
+   App.css — layout for the sidebar + stage, and control styling.
+   ============================================================ */
+
+.app {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---- Sidebar ---- */
+.controls {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.controls-header h1 {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+.controls-header .subtitle {
+  margin: 2px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.control-group h2 {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  text-align: center;
+  transition: border-color 120ms, background 120ms;
+}
+.btn:hover { border-color: #444; }
+.btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn.primary {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.btn.primary:hover { filter: brightness(1.1); }
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ---- Form inputs ---- */
+select, .text-input {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  width: 100%;
+}
+
+.color-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.color-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.color-row input[type='color'] {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 2px;
+  cursor: pointer;
+}
+
+/* ---- Sliders ---- */
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.slider-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.slider-top span:first-child { color: var(--text); }
+.slider-value { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+/* ---- Toggles ---- */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.toggle input { accent-color: var(--accent); }
+
+/* ---- Stage (the canvas area) ---- */
+.stage {
+  position: relative;
+  overflow: hidden;
+}
+
+.ascii-canvas-wrap {
+  width: 100%;
+  height: 100%;
+}
+
+.ascii-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* offscreen = visually hidden but still in DOM so browsers decode frames */
+.offscreen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  left: -9999px;
+}
+
+/* ---- Welcome + error ---- */
+.welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-dim);
+}
+.welcome h2 { color: var(--text); font-size: 18px; }
+.welcome p { margin: 0; font-size: 14px; }
+
+.error-toast {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2a1515;
+  color: #ff8080;
+  border: 1px solid #552222;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}

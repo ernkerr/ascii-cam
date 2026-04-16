@@ -1,0 +1,216 @@
+// ============================================================
+// Controls.tsx — the left sidebar: source picker, color pickers,
+// sliders, character set dropdown, screenshot button.
+//
+// This component is "dumb": it receives the current options and
+// a setter from the parent, and calls the setter on every change.
+// All the live logic lives in App / AsciiCanvas.
+// ============================================================
+
+import type { ChangeEvent } from 'react';
+import type { AsciiOptions, CharSetKey, SourceKind } from '../types';
+import { CHAR_SET_KEYS, CHAR_SET_LABELS } from '../constants/charSets';
+
+interface Props {
+  options: AsciiOptions;
+  // A "functional setState-style" setter: receives old options, returns new.
+  // This pattern lets callers change one field without clobbering the rest.
+  setOptions: (updater: (prev: AsciiOptions) => AsciiOptions) => void;
+  source: SourceKind;
+  onPickWebcam: () => void;
+  onPickImage: (file: File) => void;
+  onScreenshot: () => void;
+}
+
+export function Controls({
+  options,
+  setOptions,
+  source,
+  onPickWebcam,
+  onPickImage,
+  onScreenshot,
+}: Props) {
+  // Tiny helper: update ONE field of options. Saves repeating the spread.
+  const update = <K extends keyof AsciiOptions>(key: K, value: AsciiOptions[K]) =>
+    setOptions((prev) => ({ ...prev, [key]: value }));
+
+  // File input handler — grab the first file the user picked and hand it up.
+  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onPickImage(file);
+    // Reset the input so picking the *same* file again still fires onChange.
+    e.target.value = '';
+  };
+
+  return (
+    <aside className="controls">
+      <header className="controls-header">
+        <h1>ascii-cam</h1>
+        <p className="subtitle">pixels → characters</p>
+      </header>
+
+      {/* ---- SOURCE ---- */}
+      <section className="control-group">
+        <h2>Source</h2>
+        <div className="button-row">
+          <button
+            className={source === 'webcam' ? 'btn active' : 'btn'}
+            onClick={onPickWebcam}
+          >
+            Webcam
+          </button>
+          {/* The label wraps a hidden file input — clicking the label
+              opens the file picker, but we get to style the label freely. */}
+          <label className={source === 'image' ? 'btn active' : 'btn'}>
+            Upload image
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFile}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+      </section>
+
+      {/* ---- CHARACTERS ---- */}
+      <section className="control-group">
+        <h2>Characters</h2>
+        <select
+          value={options.charSetKey}
+          onChange={(e) => update('charSetKey', e.target.value as CharSetKey)}
+        >
+          {CHAR_SET_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {CHAR_SET_LABELS[key]}
+            </option>
+          ))}
+        </select>
+        {/* Only show the custom input when 'custom' is picked. */}
+        {options.charSetKey === 'custom' && (
+          <input
+            type="text"
+            className="text-input"
+            placeholder="Type chars, dark → light"
+            value={options.customChars}
+            onChange={(e) => update('customChars', e.target.value)}
+          />
+        )}
+      </section>
+
+      {/* ---- COLORS ---- */}
+      <section className="control-group">
+        <h2>Colors</h2>
+        <div className="color-row">
+          <label>
+            <span>Text</span>
+            <input
+              type="color"
+              value={options.color}
+              onChange={(e) => update('color', e.target.value)}
+            />
+          </label>
+          <label>
+            <span>Background</span>
+            <input
+              type="color"
+              value={options.background}
+              onChange={(e) => update('background', e.target.value)}
+            />
+          </label>
+        </div>
+      </section>
+
+      {/* ---- SLIDERS ---- */}
+      <section className="control-group">
+        <h2>Adjustments</h2>
+
+        <Slider
+          label="Contrast"
+          min={-1}
+          max={1}
+          step={0.01}
+          value={options.contrast}
+          onChange={(v) => update('contrast', v)}
+        />
+        <Slider
+          label="Brightness"
+          min={-1}
+          max={1}
+          step={0.01}
+          value={options.brightness}
+          onChange={(v) => update('brightness', v)}
+        />
+        <Slider
+          label="Resolution"
+          // Smaller fontSize = more characters = more detail.
+          // Shown to users as "Resolution" — bigger number feels like more.
+          // We invert the display by letting the slider go 6..28 for fontSize.
+          min={6}
+          max={28}
+          step={1}
+          value={options.fontSize}
+          onChange={(v) => update('fontSize', v)}
+        />
+      </section>
+
+      {/* ---- TOGGLES ---- */}
+      <section className="control-group">
+        <h2>Options</h2>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={options.mirror}
+            onChange={(e) => update('mirror', e.target.checked)}
+          />
+          Mirror
+        </label>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={options.invert}
+            onChange={(e) => update('invert', e.target.checked)}
+          />
+          Invert
+        </label>
+      </section>
+
+      {/* ---- ACTIONS ---- */}
+      <section className="control-group">
+        <button className="btn primary" onClick={onScreenshot}>
+          Save PNG
+        </button>
+      </section>
+    </aside>
+  );
+}
+
+// Sub-component: a labeled range slider that reports its numeric value.
+// Keeping it here (same file) since it's only used in Controls.
+function Slider(props: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="slider">
+      <div className="slider-top">
+        <span>{props.label}</span>
+        {/* Show the current value so the user has feedback as they drag. */}
+        <span className="slider-value">{props.value.toFixed(2)}</span>
+      </div>
+      <input
+        type="range"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        value={props.value}
+        // +e.target.value converts the string to a number.
+        onChange={(e) => props.onChange(+e.target.value)}
+      />
+    </label>
+  );
+}
