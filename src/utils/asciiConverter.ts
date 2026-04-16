@@ -39,11 +39,12 @@ export function getVisibleRegion(
     return { x: 0, y: 0, width: canvasWidth, height: canvasHeight };
   }
 
-  // Same char-grid math renderAscii uses.
+  // Same char-grid math renderAscii uses (ceil, not floor, so the last row
+  // covers the remainder that would otherwise show as bg color).
   const charHeight = fontSize;
   const charWidth = fontSize * 0.6;
-  const cols = Math.max(1, Math.floor(canvasWidth / charWidth));
-  const rows = Math.max(1, Math.floor(canvasHeight / charHeight));
+  const cols = Math.max(1, Math.ceil(canvasWidth / charWidth));
+  const rows = Math.max(1, Math.ceil(canvasHeight / charHeight));
 
   if (orientation === 'portrait') {
     // Visible chars wide = min(cols, rows * 3/4). Convert back to pixels.
@@ -119,8 +120,12 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   // So if fontSize = 12px, each cell is ~7.2px wide × 12px tall.
   const charHeight = opts.fontSize;
   const charWidth = charHeight * 0.6;
-  const cols = Math.max(1, Math.floor(outputCanvas.width / charWidth));
-  const rows = Math.max(1, Math.floor(outputCanvas.height / charHeight));
+  // Use ceil, not floor, so the grid extends slightly past the canvas edges.
+  // Any overhang gets clipped by the canvas bitmap — avoids a thin strip of
+  // bg color showing at the bottom/right when the canvas dims aren't an
+  // even multiple of char dims.
+  const cols = Math.max(1, Math.ceil(outputCanvas.width / charWidth));
+  const rows = Math.max(1, Math.ceil(outputCanvas.height / charHeight));
 
   // Resize the hidden canvas so 1 pixel = 1 character cell.
   // Only resize when needed — resizing a canvas also clears it.
