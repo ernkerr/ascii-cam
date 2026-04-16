@@ -192,20 +192,37 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
           return;
         }
 
-        // Pick the current source element based on what the user chose.
+        // Pick the current source element and grab its intrinsic dimensions
+        // — the converter needs them for cover-crop math.
         let src: CanvasImageSource | null = null;
+        let srcW = 0;
+        let srcH = 0;
         if (sourceRef.current === 'webcam') {
           const v = videoRef.current;
           // readyState >= 2 (HAVE_CURRENT_DATA) means the first frame is ready.
-          if (v && v.readyState >= 2) src = v;
+          if (v && v.readyState >= 2) {
+            src = v;
+            srcW = v.videoWidth;
+            srcH = v.videoHeight;
+          }
         } else if (sourceRef.current === 'image') {
           const i = imgRef.current;
-          if (i && i.complete && i.naturalWidth > 0) src = i;
+          if (i && i.complete && i.naturalWidth > 0) {
+            src = i;
+            srcW = i.naturalWidth;
+            srcH = i.naturalHeight;
+          }
         }
 
         if (src) {
           renderAscii(
-            { source: src, processingCanvas: processing, outputCanvas: output },
+            {
+              source: src,
+              sourceWidth: srcW,
+              sourceHeight: srcH,
+              processingCanvas: processing,
+              outputCanvas: output,
+            },
             optionsRef.current,
           );
         }

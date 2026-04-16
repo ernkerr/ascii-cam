@@ -30,13 +30,28 @@ export function getRamp(opts: AsciiOptions): string {
 // Using an interface here keeps the function signature short.
 export interface RenderTargets {
   source: CanvasImageSource;               // a <video> or <img> element
+  sourceWidth: number;                     // intrinsic width  (0 = unknown)
+  sourceHeight: number;                    // intrinsic height (0 = unknown)
   processingCanvas: HTMLCanvasElement;     // hidden, character-sized
   outputCanvas: HTMLCanvasElement;         // visible, pixel-sized
 }
 
+// How much to compress the rendered content horizontally for a "flattering"
+// slim effect, à la front-facing phone cameras. 0.96 = 4% narrower; subtle
+// enough that it reads as natural-looking, not distorted. Implemented by
+// taking a slightly *wider* crop of the source and stretching it into the
+// canvas width — so the slim effect has NO visible bars on the sides.
+const SLIM_FACTOR = 0.96;
+
 // The renderer. Pure-ish: it only writes to the two canvases it's handed.
 export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
-  const { source, processingCanvas, outputCanvas } = targets;
+  const {
+    source,
+    sourceWidth,
+    sourceHeight,
+    processingCanvas,
+    outputCanvas,
+  } = targets;
 
   // 2D contexts are our "paintbrushes" for each canvas.
   // willReadFrequently=true is a hint to the browser: "we'll call getImageData
@@ -64,14 +79,65 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
 
   // ---- Draw the source onto the hidden canvas ----
-  // Simple stretch-to-fill (original behavior — source fills the grid).
+  // Pipeline:
+  //   1. Pick a source sub-rect slightly *wider* than canvas aspect, so
+  //      squeezing it into the canvas width produces the slim effect
+  //      WITHOUT visible side bars.
+  //   2. Draw to a full-width, zoom-reduced-height destination, centered
+  //      vertically. Bars appear only on top & bottom.
+  //
+  // "Slim target aspect" = canvas aspect / SLIM_FACTOR. Roughly 4% wider
+  // than canvas aspect — the extra horizontal source content gets
+  // compressed on render, which reads as thinner.
+  const haveDims = sourceWidth > 0 && sourceHeight > 0;
+
+  processing.fillStyle = opts.invert ? '#000000' : '#ffffff';
+  processing.fillRect(0, 0, cols, rows);
+
+  let sx = 0, sy = 0, sw = sourceWidth, sh = sourceHeight;
+  if (haveDims) {
+    const srcAspect = sourceWidth / sourceHeight;
+    const canvasAspect = cols / rows;
+    const slimAspect = canvasAspect / SLIM_FACTOR;
+
+    if (srcAspect >= slimAspect) {
+      // Source is wide enough to support the slim crop — take full height
+      // and a slim-aspect-wide slice centered horizontally.
+      sh = sourceHeight;
+      sw = sourceHeight * slimAspect;
+      sx = (sourceWidth - sw) / 2;
+      sy = 0;
+    } else {
+      // Source isn't that wide. Take full width + a proportional height
+      // slice. Slim effect is reduced but nothing distorts badly.
+      sw = sourceWidth;
+      sh = sourceWidth / slimAspect;
+      if (sh > sourceHeight) {
+        // Even the slim-aspect height exceeds the source — fall back to
+        // simple cover (no slim) rather than produce a bad crop.
+        sh = sourceHeight;
+        sw = sourceHeight * canvasAspect;
+        if (sw > sourceWidth) sw = sourceWidth;
+        sx = (sourceWidth - sw) / 2;
+      } else {
+        sx = 0;
+        sy = (sourceHeight - sh) / 2;
+      }
+    }
+  }
+
+  // Destination: full canvas, edge to edge. No bars.
   processing.save();
   if (opts.mirror) {
-    // Flip horizontally: move origin to the right edge, then negate X scale.
     processing.translate(cols, 0);
     processing.scale(-1, 1);
   }
-  processing.drawImage(source, 0, 0, cols, rows);
+  if (haveDims) {
+    processing.drawImage(source, sx, sy, sw, sh, 0, 0, cols, rows);
+  } else {
+    // First-frame fallback: stretch whole source to the canvas.
+    processing.drawImage(source, 0, 0, cols, rows);
+  }
   processing.restore();
 
   // ---- Orientation bars ----
