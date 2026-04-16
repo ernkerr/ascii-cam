@@ -24,6 +24,13 @@ export type CharSetKey =
 // 'image'  → a still image the user uploaded
 export type SourceKind = 'none' | 'webcam' | 'image';
 
+// Orientation controls how the source is *cropped* before being rendered.
+// It does NOT change the canvas size — the canvas always fills the stage.
+//   auto      → no crop, source stretches to fill canvas (original behavior)
+//   portrait  → crop source to 3:4, draw in a portrait-shaped region
+//   landscape → crop source to 4:3, draw in a landscape-shaped region
+export type Orientation = 'auto' | 'portrait' | 'landscape';
+
 // All the knobs the user can tweak. We pass this object around as one bag
 // so adding a new option later only requires adding a field here.
 export interface AsciiOptions {
@@ -36,4 +43,5 @@ export interface AsciiOptions {
   background: string;       // background color behind the text
   invert: boolean;          // swap dark<->light (useful for light backgrounds)
   mirror: boolean;          // flip horizontally — nice for webcam "selfie" feel
+  orientation: Orientation; // crop source to portrait/landscape (canvas size unchanged)
 }

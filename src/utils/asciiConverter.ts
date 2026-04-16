@@ -64,8 +64,7 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
 
   // ---- Draw the source onto the hidden canvas ----
-  // Stretch source to fill the character grid. Fast and simple;
-  // distorts aspect ratio but matches the original project's behavior.
+  // Simple stretch-to-fill (original behavior — source fills the grid).
   processing.save();
   if (opts.mirror) {
     // Flip horizontally: move origin to the right edge, then negate X scale.
@@ -74,6 +73,38 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
   processing.drawImage(source, 0, 0, cols, rows);
   processing.restore();
+
+  // ---- Orientation bars ----
+  // Paint "blank" bars on top of the drawn source to crop the visible region.
+  // Bar color maps to a space character after luminosity + invert, so on the
+  // dark canvas it reads as a true black bar.
+  //
+  // Direction is hardcoded per orientation (user expects portrait = side
+  // bars, landscape = top/bottom bars, regardless of window aspect ratio).
+  // Aspects were chosen so bars stay visible on typical wide windows:
+  //   portrait  3:4     → side bars on anything wider than 3:4
+  //   landscape 21:9    → top/bottom bars on anything narrower than 21:9
+  if (opts.orientation !== 'auto') {
+    processing.fillStyle = opts.invert ? '#000000' : '#ffffff';
+
+    if (opts.orientation === 'portrait') {
+      // Visible region is 3:4 tall, centered. Bars fill the sides.
+      const visibleW = rows * (3 / 4);
+      const barW = Math.max(0, (cols - visibleW) / 2);
+      if (barW > 0) {
+        processing.fillRect(0, 0, barW, rows);
+        processing.fillRect(cols - barW, 0, barW, rows);
+      }
+    } else {
+      // Landscape: visible region is 21:9 wide, centered. Bars on top/bottom.
+      const visibleH = cols * (9 / 21);
+      const barH = Math.max(0, (rows - visibleH) / 2);
+      if (barH > 0) {
+        processing.fillRect(0, 0, cols, barH);
+        processing.fillRect(0, rows - barH, cols, barH);
+      }
+    }
+  }
 
   // Grab the pixels. `data` is a flat array: [R,G,B,A, R,G,B,A, ...]
   // so pixel at (x,y) starts at index (y*cols + x) * 4.

@@ -27,6 +27,7 @@ const DEFAULT_OPTIONS: AsciiOptions = {
   // If you pick a light background color, turn this OFF.
   invert: true,
   mirror: true, // mirror on by default for webcam selfie feel
+  orientation: 'auto', // no cropping by default
 };
 
 export default function App() {

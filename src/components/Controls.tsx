@@ -182,9 +182,9 @@ export function Controls({
       {/* ---- TOGGLES ---- */}
       <section className="control-group">
         <h2>Options</h2>
-        {/* Stacked vertically but constrained to half the sidebar width,
-            matching the width they'd have in a 2-up button-row. */}
-        <div className="button-stack-half">
+        {/* 2×2 grid: Mirror | Invert (row 1), Portrait | Landscape (row 2).
+            button-row is a 2-column grid, so 4 children naturally form 2x2. */}
+        <div className="button-row">
           <button
             type="button"
             aria-pressed={options.mirror}
@@ -200,6 +200,34 @@ export function Controls({
             onClick={() => update('invert', !options.invert)}
           >
             Invert
+          </button>
+          {/* Portrait / Landscape are mutually exclusive — clicking the
+              active one deactivates it (back to auto/no crop). */}
+          <button
+            type="button"
+            aria-pressed={options.orientation === 'portrait'}
+            className={options.orientation === 'portrait' ? 'btn active' : 'btn'}
+            onClick={() =>
+              update(
+                'orientation',
+                options.orientation === 'portrait' ? 'auto' : 'portrait',
+              )
+            }
+          >
+            Portrait
+          </button>
+          <button
+            type="button"
+            aria-pressed={options.orientation === 'landscape'}
+            className={options.orientation === 'landscape' ? 'btn active' : 'btn'}
+            onClick={() =>
+              update(
+                'orientation',
+                options.orientation === 'landscape' ? 'auto' : 'landscape',
+              )
+            }
+          >
+            Landscape
           </button>
         </div>
       </section>
