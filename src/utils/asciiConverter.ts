@@ -56,8 +56,9 @@ export function getVisibleRegion(
       height: canvasHeight,
     };
   }
-  // Landscape — 21:9 region, top/bottom bars.
-  const visibleRows = Math.min(rows, cols * (9 / 21));
+  // Landscape — 16:9 region, top/bottom bars (matches standard iPhone
+  // landscape video aspect — what you'd expect to share on socials).
+  const visibleRows = Math.min(rows, cols * (9 / 16));
   const barRows = Math.max(0, (rows - visibleRows) / 2);
   return {
     x: 0,
@@ -199,7 +200,7 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   // bars, landscape = top/bottom bars, regardless of window aspect ratio).
   // Aspects were chosen so bars stay visible on typical wide windows:
   //   portrait  3:4     → side bars on anything wider than 3:4
-  //   landscape 21:9    → top/bottom bars on anything narrower than 21:9
+  //   landscape 16:9    → top/bottom bars on anything narrower than 16:9
   if (opts.orientation !== 'auto') {
     processing.fillStyle = opts.invert ? '#000000' : '#ffffff';
 
@@ -212,8 +213,8 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
         processing.fillRect(cols - barW, 0, barW, rows);
       }
     } else {
-      // Landscape: visible region is 21:9 wide, centered. Bars on top/bottom.
-      const visibleH = cols * (9 / 21);
+      // Landscape: visible region is 16:9 wide, centered. Bars on top/bottom.
+      const visibleH = cols * (9 / 16);
       const barH = Math.max(0, (rows - visibleH) / 2);
       if (barH > 0) {
         processing.fillRect(0, 0, cols, barH);
@@ -280,27 +281,45 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
 
   // ---- Watermark ----
-  // Place it in the bottom-right of the VISIBLE region, not the full canvas.
-  // That way, when the user crops an export to portrait/landscape shape, the
-  // watermark comes along and sits where you'd expect.
+  // A thin dark band along the bottom of the VISIBLE region with the
+  // watermark text riding inside it. Subtle but always legible, regardless
+  // of what colors the user picked, and included in portrait/landscape
+  // exports because it lives inside the visible region.
   const region = getVisibleRegion(
     outputCanvas.width,
     outputCanvas.height,
     opts.fontSize,
     opts.orientation,
   );
+
+  // 22px band with a ~6px soft fade-in on its top edge so it doesn't land
+  // as a hard black line over the ASCII. Solid ~85% black below the fade
+  // so text on it is always legible.
+  const bandHeight = 32;
+  const bandTop = region.y + region.height - bandHeight;
+  const softEdge = 18 / bandHeight;
+  const fade = output.createLinearGradient(0, bandTop, 0, region.y + region.height);
+  fade.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  fade.addColorStop(softEdge, 'rgba(0, 0, 0, 0.85)');
+  fade.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+  output.fillStyle = fade;
+  output.fillRect(region.x, bandTop, region.width, bandHeight);
+
+  // Watermark text, vertically centered in the band, right-aligned.
   const watermark = 'ascii-cam.com';
-  const wmSize = 15;
-  const wmMargin = 12;
+  const wmSize = 11;
+  const wmMargin = 10;
   output.font = `${wmSize}px ui-monospace, 'JetBrains Mono', Menlo, monospace`;
   output.textBaseline = 'bottom';
   output.fillStyle = opts.color;
-  output.globalAlpha = 0.55;
+  output.globalAlpha = 1;
   const wmWidth = output.measureText(watermark).width;
+  // Anchor to the bottom of the band with a small margin — sits in the
+  // solid portion below the fade.
   output.fillText(
     watermark,
     region.x + region.width - wmWidth - wmMargin,
-    region.y + region.height - wmMargin,
+    bandTop + bandHeight - 5,
   );
   output.globalAlpha = 1;
 }
