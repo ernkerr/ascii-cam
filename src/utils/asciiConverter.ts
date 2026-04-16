@@ -228,4 +228,23 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
     }
     output.fillText(line, 0, y * charHeight);
   }
+
+  // ---- Watermark ----
+  // Readable "ascii-cam.com" in the bottom-right. Drawn on the output canvas
+  // (not the processing canvas) so it's a clean label — baked into every
+  // PNG/MP4/GIF export, but croppable by anyone who really wants to.
+  const watermark = 'ascii-cam.com';
+  const wmSize = 15;
+  const wmMargin = 12;
+  output.font = `${wmSize}px ui-monospace, 'JetBrains Mono', Menlo, monospace`;
+  output.textBaseline = 'bottom';
+  output.fillStyle = opts.color;
+  output.globalAlpha = 0.55;
+  const wmWidth = output.measureText(watermark).width;
+  output.fillText(
+    watermark,
+    outputCanvas.width - wmWidth - wmMargin,
+    outputCanvas.height - wmMargin,
+  );
+  output.globalAlpha = 1;
 }

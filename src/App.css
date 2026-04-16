@@ -222,3 +222,68 @@ input[type='range'] {
   border-radius: var(--radius);
   font-size: 13px;
 }
+
+/* ---- Thanks modal ---- */
+.thanks-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 140ms ease-out;
+}
+.thanks-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 28px 24px;
+  width: min(380px, 90vw);
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: popIn 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.thanks-card h2 { font-size: 22px; margin: 0 0 8px; }
+.thanks-card p { margin: 0 0 18px; color: var(--text-dim); font-size: 14px; line-height: 1.45; }
+.thanks-card strong { color: var(--accent); font-weight: 500; }
+
+.thanks-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.thanks-links .btn {
+  text-decoration: none;
+  /* Include box-shadow in the transition so the hover glow animates in. */
+  transition: border-color 160ms, color 160ms, background 160ms, box-shadow 160ms;
+}
+.thanks-links .btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.thanks-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.thanks-close:hover { color: var(--text); background: var(--panel-2); }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}

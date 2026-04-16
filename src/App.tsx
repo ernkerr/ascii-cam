@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AsciiCanvas } from './components/AsciiCanvas';
 import type { AsciiCanvasHandle } from './components/AsciiCanvas';
 import { Controls } from './components/Controls';
+import { ThanksModal } from './components/ThanksModal';
 import type { AsciiOptions, SourceKind } from './types';
 import './App.css';
 
@@ -52,6 +53,9 @@ export default function App() {
   const [gifStart, setGifStart] = useState<number | null>(null);
   const [gifElapsed, setGifElapsed] = useState(0);
   const [gifProgress, setGifProgress] = useState(0);
+
+  // Thanks modal: show after any successful export.
+  const [showThanks, setShowThanks] = useState(false);
 
   // Ref into the canvas component so we can call its screenshot() method.
   const canvasRef = useRef<AsciiCanvasHandle>(null);
@@ -134,6 +138,12 @@ export default function App() {
     setGifElapsed(0);
   }, []);
 
+  // Fires once a PNG / MP4 / GIF download has been triggered. Shows the
+  // "thanks" modal with the portfolio / coffee / hire links.
+  const handleExport = useCallback(() => {
+    setShowThanks(true);
+  }, []);
+
   return (
     <div className="app">
       <Controls
@@ -167,10 +177,13 @@ export default function App() {
             onError={setErrorMsg}
             onGifProgress={setGifProgress}
             onGifAutoStop={handleGifAutoStop}
+            onExport={handleExport}
           />
         )}
         {errorMsg && <div className="error-toast">{errorMsg}</div>}
       </main>
+
+      <ThanksModal open={showThanks} onClose={() => setShowThanks(false)} />
     </div>
   );
 }

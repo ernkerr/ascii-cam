@@ -65,12 +65,26 @@ interface Props {
   // Fires when the GIF recorder auto-stops because it hit GIF_MAX_SECONDS.
   // Parent uses this to flip its isGifRecording state off.
   onGifAutoStop?: () => void;
+  // Fires whenever a file is downloaded (PNG / MP4 / GIF). Parent uses this
+  // to show a "thanks + links" modal.
+  onExport?: (kind: 'png' | 'video' | 'gif') => void;
 }
 
 // forwardRef lets the parent attach a ref to this component
 // (needed so the Controls sidebar can call screenshot()).
 export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
-  ({ source, imageSrc, options, onError, onGifProgress, onGifAutoStop }, ref) => {
+  (
+    {
+      source,
+      imageSrc,
+      options,
+      onError,
+      onGifProgress,
+      onGifAutoStop,
+      onExport,
+    },
+    ref,
+  ) => {
     // Visible output canvas — what the user sees.
     const outputRef = useRef<HTMLCanvasElement>(null);
     // Hidden processing canvas — tiny, sized in characters.
@@ -252,6 +266,7 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
         if (!canvas) return;
         const url = canvas.toDataURL('image/png');
         triggerDownload(url, `ascii-cam-${Date.now()}.png`);
+        onExport?.('png');
       },
 
       // Record the visible canvas to a video file.
@@ -295,6 +310,7 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
           triggerDownload(url, `ascii-cam-${Date.now()}.${ext}`);
           URL.revokeObjectURL(url);
           recorderRef.current = null;
+          onExport?.('video');
         };
         // start() with no args buffers everything; we also pass a timeslice
         // so dataavailable fires periodically (safer for long recordings).
@@ -416,6 +432,7 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
         triggerDownload(url, `ascii-cam-${Date.now()}.gif`);
         URL.revokeObjectURL(url);
         setTimeout(() => onGifProgress?.(0), 500);
+        onExport?.('gif');
       });
       gif.render();
     }
