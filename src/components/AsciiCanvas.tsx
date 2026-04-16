@@ -15,7 +15,7 @@ import {
 } from 'react';
 import GIF from 'gif.js';
 import type { AsciiOptions, SourceKind } from '../types';
-import { renderAscii } from '../utils/asciiConverter';
+import { renderAscii, getVisibleRegion } from '../utils/asciiConverter';
 
 // How often we snapshot a frame into the GIF (ms). 100ms = 10 fps.
 // Going higher (more fps) makes GIFs huge; 10fps is the sweet spot for scenes.
@@ -114,6 +114,13 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
     // MediaRecorder state — null when not recording.
     // We keep it in a ref (not state) because changing it shouldn't re-render.
     const recorderRef = useRef<MediaRecorder | null>(null);
+
+    // Offscreen "record canvas" sized to the visible region at the moment
+    // recording started. Every frame during recording we copy the visible
+    // region from the output canvas into this one, and MediaRecorder streams
+    // from it — so the MP4 comes out in portrait/landscape dimensions instead
+    // of a full-canvas file with bars baked in.
+    const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
     // GIF recording state. We snapshot frames into an ImageData array while
     // recording (buffering in memory), then feed them all to gif.js on stop.
@@ -239,6 +246,27 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
             },
             optionsRef.current,
           );
+
+          // If video recording is active, copy the visible region onto the
+          // fixed-size record canvas so MediaRecorder captures only the
+          // portrait/landscape area — no bars baked into the MP4.
+          const rec = recordCanvasRef.current;
+          if (rec && recorderRef.current) {
+            const recCtx = rec.getContext('2d', { alpha: false });
+            if (recCtx) {
+              const region = getVisibleRegion(
+                output.width,
+                output.height,
+                optionsRef.current.fontSize,
+                optionsRef.current.orientation,
+              );
+              recCtx.drawImage(
+                output,
+                region.x, region.y, region.width, region.height,
+                0, 0, rec.width, rec.height,
+              );
+            }
+          }
         }
 
         rafId = requestAnimationFrame(tick);
@@ -260,11 +288,31 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
 
     // ---- Imperative handle: expose methods to the parent via ref ----
     useImperativeHandle(ref, () => ({
-      // The PNG literally IS the output canvas — toDataURL serializes it for us.
+      // Crop to the visible region first so portrait/landscape exports come
+      // out in the right dimensions (no orientation bars in the PNG).
       screenshot: () => {
         const canvas = outputRef.current;
         if (!canvas) return;
-        const url = canvas.toDataURL('image/png');
+
+        const region = getVisibleRegion(
+          canvas.width,
+          canvas.height,
+          optionsRef.current.fontSize,
+          optionsRef.current.orientation,
+        );
+        // A temp canvas sized to the visible region, so the PNG's width/height
+        // reflect the aspect the user chose.
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = Math.max(1, Math.round(region.width));
+        exportCanvas.height = Math.max(1, Math.round(region.height));
+        const ctx = exportCanvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(
+          canvas,
+          region.x, region.y, region.width, region.height,
+          0, 0, exportCanvas.width, exportCanvas.height,
+        );
+        const url = exportCanvas.toDataURL('image/png');
         triggerDownload(url, `ascii-cam-${Date.now()}.png`);
         onExport?.('png');
       },
@@ -277,7 +325,22 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
         const canvas = outputRef.current;
         if (!canvas || recorderRef.current) return;
 
-        const stream = canvas.captureStream(30); // 30 fps
+        // Lock the recording dimensions to the visible region AT THIS MOMENT.
+        // We stream from a private canvas (see recordCanvasRef) that the
+        // render loop copies the region into each frame. Result: MP4 comes
+        // out in portrait/landscape dimensions, no bars baked in.
+        const region = getVisibleRegion(
+          canvas.width,
+          canvas.height,
+          optionsRef.current.fontSize,
+          optionsRef.current.orientation,
+        );
+        const rec = document.createElement('canvas');
+        rec.width = Math.max(1, Math.round(region.width));
+        rec.height = Math.max(1, Math.round(region.height));
+        recordCanvasRef.current = rec;
+
+        const stream = rec.captureStream(30); // 30 fps
 
         // Prefer MP4 (universal player support) over WebM. Color fidelity on
         // saturated neon shifts slightly under H.264 chroma subsampling, but
@@ -310,6 +373,8 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
           triggerDownload(url, `ascii-cam-${Date.now()}.${ext}`);
           URL.revokeObjectURL(url);
           recorderRef.current = null;
+          // Drop the record canvas so the render loop stops the per-frame copy.
+          recordCanvasRef.current = null;
           onExport?.('video');
         };
         // start() with no args buffers everything; we also pass a timeslice
@@ -332,16 +397,22 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
         const canvas = outputRef.current;
         if (!canvas) return;
 
-        // Decide target dimensions ONCE at record start.
-        // If canvas is wider than GIF_MAX_WIDTH, scale proportionally.
-        // This both shrinks file size and cuts per-frame memory ~4×.
+        // Use the VISIBLE region's dimensions as the base GIF size, so
+        // portrait/landscape GIFs come out in the right aspect (no bars).
+        const region = getVisibleRegion(
+          canvas.width,
+          canvas.height,
+          optionsRef.current.fontSize,
+          optionsRef.current.orientation,
+        );
+        // Then cap width to keep file size sane (memory + shareability).
         const scale =
-          canvas.width > GIF_MAX_WIDTH ? GIF_MAX_WIDTH / canvas.width : 1;
-        const w = Math.max(1, Math.round(canvas.width * scale));
-        const h = Math.max(1, Math.round(canvas.height * scale));
+          region.width > GIF_MAX_WIDTH ? GIF_MAX_WIDTH / region.width : 1;
+        const w = Math.max(1, Math.round(region.width * scale));
+        const h = Math.max(1, Math.round(region.height * scale));
         gifDimsRef.current = { w, h };
 
-        // Create-once scratch canvas for downscaling.
+        // Create-once scratch canvas for downscaling the cropped region.
         const scale_c = document.createElement('canvas');
         scale_c.width = w;
         scale_c.height = h;
@@ -357,9 +428,20 @@ export const AsciiCanvas = forwardRef<AsciiCanvasHandle, Props>(
           const ctx = scaleCanvas.getContext('2d');
           if (!ctx) return;
           try {
-            // drawImage with destination size does the scaling for us —
-            // the browser uses bilinear filtering, free and fast.
-            ctx.drawImage(c, 0, 0, scaleCanvas.width, scaleCanvas.height);
+            // Copy the VISIBLE region (recomputed each tick — handles
+            // window resize mid-recording) into the scale canvas.
+            // drawImage does the downscale for free via bilinear filtering.
+            const r = getVisibleRegion(
+              c.width,
+              c.height,
+              optionsRef.current.fontSize,
+              optionsRef.current.orientation,
+            );
+            ctx.drawImage(
+              c,
+              r.x, r.y, r.width, r.height,
+              0, 0, scaleCanvas.width, scaleCanvas.height,
+            );
             // getImageData snapshots the pixels so gif.js can read them
             // later even after we overwrite the scratch canvas.
             gifFramesRef.current.push(

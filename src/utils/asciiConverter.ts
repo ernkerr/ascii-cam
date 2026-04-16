@@ -14,8 +14,58 @@
 // "average color" of each character cell for free.
 // ============================================================
 
-import type { AsciiOptions } from '../types';
+import type { AsciiOptions, Orientation } from '../types';
 import { CHAR_SETS } from '../constants/charSets';
+
+// Rectangle on the output canvas in pixel coordinates.
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// Returns the visible region of the output canvas — i.e. the area NOT
+// covered by orientation bars. Matches the bar math inside renderAscii
+// exactly (both are derived from the same char-grid dimensions) so the
+// watermark and export cropping land in pixel-perfect alignment.
+export function getVisibleRegion(
+  canvasWidth: number,
+  canvasHeight: number,
+  fontSize: number,
+  orientation: Orientation,
+): Rect {
+  if (orientation === 'auto') {
+    return { x: 0, y: 0, width: canvasWidth, height: canvasHeight };
+  }
+
+  // Same char-grid math renderAscii uses.
+  const charHeight = fontSize;
+  const charWidth = fontSize * 0.6;
+  const cols = Math.max(1, Math.floor(canvasWidth / charWidth));
+  const rows = Math.max(1, Math.floor(canvasHeight / charHeight));
+
+  if (orientation === 'portrait') {
+    // Visible chars wide = min(cols, rows * 3/4). Convert back to pixels.
+    const visibleCols = Math.min(cols, rows * (3 / 4));
+    const barCols = Math.max(0, (cols - visibleCols) / 2);
+    return {
+      x: barCols * charWidth,
+      y: 0,
+      width: visibleCols * charWidth,
+      height: canvasHeight,
+    };
+  }
+  // Landscape — 21:9 region, top/bottom bars.
+  const visibleRows = Math.min(rows, cols * (9 / 21));
+  const barRows = Math.max(0, (rows - visibleRows) / 2);
+  return {
+    x: 0,
+    y: barRows * charHeight,
+    width: canvasWidth,
+    height: visibleRows * charHeight,
+  };
+}
 
 // Pick the active ramp string based on options.
 // If the user chose 'custom', use whatever they typed (fall back to a space if empty).
@@ -126,7 +176,7 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
     }
   }
 
-  // Destination: full canvas, edge to edge. No bars.
+  // Destination: full canvas, edge to edge.
   processing.save();
   if (opts.mirror) {
     processing.translate(cols, 0);
@@ -230,9 +280,15 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   }
 
   // ---- Watermark ----
-  // Readable "ascii-cam.com" in the bottom-right. Drawn on the output canvas
-  // (not the processing canvas) so it's a clean label — baked into every
-  // PNG/MP4/GIF export, but croppable by anyone who really wants to.
+  // Place it in the bottom-right of the VISIBLE region, not the full canvas.
+  // That way, when the user crops an export to portrait/landscape shape, the
+  // watermark comes along and sits where you'd expect.
+  const region = getVisibleRegion(
+    outputCanvas.width,
+    outputCanvas.height,
+    opts.fontSize,
+    opts.orientation,
+  );
   const watermark = 'ascii-cam.com';
   const wmSize = 15;
   const wmMargin = 12;
@@ -243,8 +299,8 @@ export function renderAscii(targets: RenderTargets, opts: AsciiOptions): void {
   const wmWidth = output.measureText(watermark).width;
   output.fillText(
     watermark,
-    outputCanvas.width - wmWidth - wmMargin,
-    outputCanvas.height - wmMargin,
+    region.x + region.width - wmWidth - wmMargin,
+    region.y + region.height - wmMargin,
   );
   output.globalAlpha = 1;
 }
