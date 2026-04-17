@@ -5,14 +5,38 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ascii-cam — turn your camera into ASCII art</title>
+    <title>ascii-cam — live ASCII art from your webcam or photos</title>
+
+    <!-- Canonical URL so Google doesn't treat www/non-www as duplicates. -->
+    <link rel="canonical" href="https://ascii-cam.com/" />
 
     <!-- Core SEO -->
     <meta
       name="description"
-      content="Turn your webcam or any image into live ASCII art. Pick colors and character sets, tweak contrast, export PNG / MP4 / GIF. Free, no signups, no ads."
+      content="Free online ASCII art generator. Turn your webcam or any photo into live ASCII art — pick colors, character sets, tweak contrast, export as PNG, MP4 or GIF. No signups, no ads."
     />
+    <meta
+      name="keywords"
+      content="ascii art, ascii cam, ascii webcam, ascii art generator, webcam to ascii, ascii video, text art, ascii converter, ascii online"
+    />
+    <meta name="author" content="ern" />
     <meta name="theme-color" content="#0a0a0a" />
+
+    <!-- JSON-LD structured data: tells Google this is a WebApplication.
+         Helps rich snippets + "applicationCategory" categorization. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "ascii-cam",
+        "url": "https://ascii-cam.com",
+        "description": "Live ASCII art from your webcam or photos. Pick colors and character sets, export PNG / MP4 / GIF. Free, in-browser, no signups.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any (web)",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "creator": { "@type": "Person", "name": "ern" }
+      }
+    </script>
 
     <!-- Open Graph (Facebook, iMessage, Slack, LinkedIn, Discord) -->
     <meta property="og:type" content="website" />
