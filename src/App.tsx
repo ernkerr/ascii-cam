@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AsciiCanvas } from './components/AsciiCanvas';
 import type { AsciiCanvasHandle } from './components/AsciiCanvas';
+import { Analytics } from '@vercel/analytics/react';
 import { Controls } from './components/Controls';
 import { MobileControls } from './components/MobileControls';
 import { Rail } from './components/Rail';
@@ -208,6 +209,9 @@ export default function App() {
       />
 
       <ThanksModal open={showThanks} onClose={() => setShowThanks(false)} />
+
+      {/* Vercel Web Analytics — no-op until deployed on Vercel. */}
+      <Analytics />
     </div>
   );
 }
