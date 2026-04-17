@@ -356,11 +356,16 @@ input[type='range'] {
   }
 
   /* Make the <select> for char-set look like a chip. The native picker
-     opens on tap with no extra wiring. */
+     opens on tap with no extra wiring. Cap its width so the longest
+     option label ("Density — complex") doesn't stretch the chip. */
   .m-chip-select {
     appearance: none;
     -webkit-appearance: none;
     padding-right: 26px; /* room for the down-arrow we draw */
+    max-width: 130px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
     background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
                       linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
     background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
