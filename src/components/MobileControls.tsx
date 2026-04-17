@@ -1,16 +1,15 @@
 // ============================================================
 // MobileControls.tsx — bottom chip bar for mobile (≤640px).
 //
-// Renders every adjustment as a horizontally-scrolling chip. Chips for
-// sliders pop up a small control strip above the chip row when tapped.
-// Chips for color/char-set click hidden native inputs to surface the
-// system picker. Toggle chips just toggle on tap.
-//
-// CSS hides this on desktop; the regular Controls sidebar handles those.
+// Renders every adjustment as a chip in a horizontally-scrolling row.
+// Slider chips pop a slim slider strip above the row when tapped.
+// Color and file chips wrap the corresponding native input in a <label>
+// so a tap surfaces the system picker (programmatic .click() on a hidden
+// input is unreliable on iOS — labels are the documented workaround).
+// The character-set chip is a styled <select> for the same reason.
 // ============================================================
 
 import {
-  useRef,
   useState,
   type ChangeEvent,
 } from 'react';
@@ -34,15 +33,7 @@ export function MobileControls({
   onPickWebcam,
   onPickImage,
 }: Props) {
-  // Which slider, if any, is expanded above the chip row.
   const [activeSlider, setActiveSlider] = useState<Slider | null>(null);
-
-  // Refs to hidden native inputs we trigger via chip taps. Lets us reuse
-  // the system color/file/select pickers without rebuilding them ourselves.
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const colorInputRef = useRef<HTMLInputElement>(null);
-  const bgInputRef = useRef<HTMLInputElement>(null);
-  const charSelectRef = useRef<HTMLSelectElement>(null);
 
   const update = <K extends keyof AsciiOptions>(key: K, value: AsciiOptions[K]) =>
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -58,7 +49,6 @@ export function MobileControls({
 
   return (
     <div className="m-controls">
-      {/* Active slider popover — only renders when one's selected. */}
       {activeSlider && (
         <div className="m-slider-strip">
           <SliderStrip
@@ -91,28 +81,27 @@ export function MobileControls({
         </div>
       )}
 
-      {/* The horizontally-scrolling chip row. */}
       <div className="m-chips">
-        {/* Source */}
+        {/* ---- Source ---- */}
         <Chip
           label="webcam"
           active={source === 'webcam'}
           onClick={onPickWebcam}
         />
-        <Chip label="upload" onClick={() => fileInputRef.current?.click()} />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFile}
-          className="m-hidden-input"
-        />
+        {/* File-input via label is the iOS-reliable picker trigger. */}
+        <label className="m-chip">
+          upload
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            className="m-input-overlay"
+          />
+        </label>
 
-        {/* Characters — chip taps open the native <select> picker */}
-        <Chip label="chars" onClick={() => charSelectRef.current?.click()} />
+        {/* ---- Characters: a styled <select> shows native picker on tap. */}
         <select
-          ref={charSelectRef}
-          className="m-hidden-input"
+          className="m-chip m-chip-select"
           value={options.charSetKey}
           onChange={(e) => update('charSetKey', e.target.value as CharSetKey)}
         >
@@ -123,29 +112,29 @@ export function MobileControls({
           ))}
         </select>
 
-        {/* Colors — chips wrap a hidden color input + show a swatch */}
-        <SwatchChip
-          label="color"
-          color={options.color}
-          inputRef={colorInputRef}
-        />
-        <input
-          ref={colorInputRef}
-          type="color"
-          className="m-hidden-input"
-          value={options.color}
-          onChange={(e) => update('color', e.target.value)}
-        />
-        <SwatchChip label="bg" color={options.background} inputRef={bgInputRef} />
-        <input
-          ref={bgInputRef}
-          type="color"
-          className="m-hidden-input"
-          value={options.background}
-          onChange={(e) => update('background', e.target.value)}
-        />
+        {/* ---- Colors: <label> wrapping native color input. */}
+        <label className="m-chip">
+          <span className="m-swatch" style={{ background: options.color }} />
+          color
+          <input
+            type="color"
+            value={options.color}
+            onChange={(e) => update('color', e.target.value)}
+            className="m-input-overlay"
+          />
+        </label>
+        <label className="m-chip">
+          <span className="m-swatch" style={{ background: options.background }} />
+          bg
+          <input
+            type="color"
+            value={options.background}
+            onChange={(e) => update('background', e.target.value)}
+            className="m-input-overlay"
+          />
+        </label>
 
-        {/* Sliders — toggle the strip above */}
+        {/* ---- Sliders ---- */}
         <Chip
           label="contrast"
           active={activeSlider === 'contrast'}
@@ -162,7 +151,7 @@ export function MobileControls({
           onClick={() => toggleSlider('size')}
         />
 
-        {/* Toggles */}
+        {/* ---- Toggles ---- */}
         <Chip
           label="mirror"
           active={options.mirror}
@@ -210,24 +199,6 @@ function Chip(props: { label: string; active?: boolean; onClick: () => void }) {
   );
 }
 
-// Chip with a small color swatch — taps the hidden color input via the ref.
-function SwatchChip(props: {
-  label: string;
-  color: string;
-  inputRef: React.RefObject<HTMLInputElement | null>;
-}) {
-  return (
-    <button
-      type="button"
-      className="m-chip"
-      onClick={() => props.inputRef.current?.click()}
-    >
-      <span className="m-swatch" style={{ background: props.color }} />
-      {props.label}
-    </button>
-  );
-}
-
 function SliderStrip(props: {
   label: string;
   value: number;
@@ -242,7 +213,11 @@ function SliderStrip(props: {
       <div className="m-slider-head">
         <span>{props.label}</span>
         <span className="m-slider-val">{props.value.toFixed(2)}</span>
-        <button className="m-slider-close" onClick={props.onClose} aria-label="Close">
+        <button
+          className="m-slider-close"
+          onClick={props.onClose}
+          aria-label="Close"
+        >
           ×
         </button>
       </div>
