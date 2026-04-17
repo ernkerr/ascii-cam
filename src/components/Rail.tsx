@@ -16,8 +16,6 @@ function formatElapsed(ms: number): string {
 
 interface Props {
   source: SourceKind;
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
   onScreenshot: () => void;
   onToggleRecord: () => void;
   isRecording: boolean;
@@ -30,8 +28,6 @@ interface Props {
 
 export function Rail({
   source,
-  sidebarOpen,
-  onToggleSidebar,
   onScreenshot,
   onToggleRecord,
   isRecording,
@@ -43,14 +39,6 @@ export function Rail({
 }: Props) {
   return (
     <nav className="rail" aria-label="Actions">
-      <button
-        className="rail-btn"
-        onClick={onToggleSidebar}
-        aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
-        title={sidebarOpen ? 'Close' : 'Menu'}
-      >
-        {sidebarOpen ? '✕' : '☰'}
-      </button>
       <button
         className="rail-btn"
         onClick={onScreenshot}

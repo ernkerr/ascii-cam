@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AsciiCanvas } from './components/AsciiCanvas';
 import type { AsciiCanvasHandle } from './components/AsciiCanvas';
 import { Controls } from './components/Controls';
+import { MobileControls } from './components/MobileControls';
 import { Rail } from './components/Rail';
 import { ThanksModal } from './components/ThanksModal';
 import type { AsciiOptions, SourceKind } from './types';
@@ -41,12 +42,6 @@ export default function App() {
   // (a blob-backed string URL) so <img> can load it without re-encoding.
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Sidebar open/closed. Default: open on desktop, closed on mobile.
-  // Only evaluated once on mount; after that the user drives it via the toggle.
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth > 640 : true,
-  );
 
   // Recording state lives here (not inside AsciiCanvas) so the Record button
   // in the sidebar can render the current elapsed time and label.
@@ -152,7 +147,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className={`app ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+    <div className="app">
       <Controls
         options={options}
         setOptions={setOptions}
@@ -190,11 +185,18 @@ export default function App() {
         {errorMsg && <div className="error-toast">{errorMsg}</div>}
       </main>
 
-      {/* Mobile-only bottom action bar (CSS hides this on desktop). */}
+      {/* Mobile-only chip bar + slider strip (CSS hides this on desktop). */}
+      <MobileControls
+        options={options}
+        setOptions={setOptions}
+        source={source}
+        onPickWebcam={handlePickWebcam}
+        onPickImage={handlePickImage}
+      />
+
+      {/* Mobile-only action bar at the very bottom (CSS hides this on desktop). */}
       <Rail
         source={source}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((o) => !o)}
         onScreenshot={handleScreenshot}
         onToggleRecord={handleToggleRecord}
         isRecording={isRecording}

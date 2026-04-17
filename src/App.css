@@ -244,34 +244,32 @@ input[type='range'] {
   min-width: 0; /* let the grid cell shrink */
 }
 
+/* ---- Mobile-only bottom chip bar + slider strip ---- */
+.m-controls {
+  display: none; /* shown only on mobile, see media query */
+}
+
 /* ---- Mobile ---- */
 /* Layout switches to:
-     - Stage takes the whole viewport
-     - Rail is a fixed 64px bar along the bottom
-     - Controls panel is a fixed overlay that slides in from the left
+     - Stage takes the whole viewport (minus bottom UI)
+     - Chip bar above the rail; tap a chip → slider strip pops above it
+     - Rail at the very bottom for actions (PNG/MP4/GIF)
+     - Sidebar (.controls) is hidden — chips replace it
 */
 @media (max-width: 640px) {
   .app {
     grid-template-columns: 1fr;
   }
+  /* Hide the desktop sidebar entirely on mobile — chips cover all controls. */
   .controls {
-    position: fixed;
-    top: 0;
-    bottom: 64px; /* leave room for the rail */
-    left: 0;
-    width: min(85vw, 320px);
-    z-index: 20;
-    transform: translateX(-100%);
-    transition: transform 220ms ease;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
-  }
-  .app.sidebar-open .controls {
-    transform: translateX(0);
+    display: none;
   }
   .stage {
-    /* Main area sits above the rail. */
-    margin-bottom: 64px;
+    /* Stage sits above the chip bar (44px) + rail (64px). */
+    margin-bottom: calc(108px + env(safe-area-inset-bottom, 0));
   }
+
+  /* Rail at the very bottom. */
   .rail {
     display: flex;
     flex-direction: row;
@@ -279,19 +277,119 @@ input[type='range'] {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 64px;
     padding: 8px 12px;
     border-top: 1px solid var(--border);
     justify-content: space-around;
     align-items: center;
     z-index: 25;
-    /* Respect the home-bar inset on iOS. */
     padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
     height: calc(64px + env(safe-area-inset-bottom, 0));
   }
   .rail-btn {
     flex: 1;
     max-width: 80px;
+  }
+
+  /* Chip bar — fixed just above the rail. */
+  .m-controls {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0));
+    z-index: 24;
+  }
+  .m-chips {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    padding: 6px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: rgba(20, 20, 20, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    scrollbar-width: none; /* hide on Firefox */
+  }
+  .m-chips::-webkit-scrollbar { display: none; } /* hide on WebKit */
+
+  .m-chip {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: lowercase;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: background 120ms, border-color 120ms, color 120ms;
+  }
+  .m-chip.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .m-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+  }
+
+  /* Hidden inputs that chips trigger via .click() */
+  .m-hidden-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    left: -9999px;
+  }
+
+  /* Slider strip that pops above the chip row when a slider chip is active. */
+  .m-slider-strip {
+    background: rgba(20, 20, 20, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    padding: 10px 14px 12px;
+  }
+  .m-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .m-slider-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .m-slider-val {
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+  .m-slider-close {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .m-slider input[type='range'] {
+    width: 100%;
+    accent-color: var(--accent);
   }
 }
 
