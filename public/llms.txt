@@ -1,0 +1,9 @@
+# ascii-cam
+
+> Free in-browser ASCII art generator. Turns a live webcam feed or an uploaded photo into real-time ASCII art — everything runs locally in the browser, nothing is uploaded to a server. Users can choose from ten character sets (blocks, density ramps, binary, stars, circles, hearts, dots, arrows, or a custom set), pick colors, and adjust contrast and resolution, then export the result as a PNG image, MP4 video, or animated GIF. No signups, no ads.
+
+## Pages
+
+- [Home](https://ascii-cam.com/): The app itself — live ASCII art from your webcam or photos, with character set, color, and contrast controls plus PNG / MP4 / GIF export.
+
+Built by Erin Kerr — https://erin-codes.com · https://erinkerr.me

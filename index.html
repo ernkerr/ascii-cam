@@ -40,7 +40,8 @@
 
     <!-- Open Graph (Facebook, iMessage, Slack, LinkedIn, Discord) -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://ascii-cam.com" />
+    <meta property="og:url" content="https://ascii-cam.com/" />
+    <meta property="og:site_name" content="ascii-cam" />
     <meta property="og:title" content="ascii-cam — turn your camera into ASCII art" />
     <meta
       property="og:description"
@@ -70,7 +71,42 @@
     <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "5dd883fc4e244ed9a49f5db2d5f5a7a1"}'></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static crawlable content for search engines + AI crawlers.
+           React replaces everything inside #root on mount, so users only
+           see this briefly (if at all) while the JS loads. Styled to match
+           the app's dark theme so there's no jarring flash. -->
+      <section
+        style="
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+          padding: 24px;
+          background: #0a0a0a;
+          color: #e8e8e8;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        "
+      >
+        <h1 style="margin: 0 0 12px">ascii-cam</h1>
+        <p style="max-width: 42rem; margin: 0 0 20px; line-height: 1.6">
+          Turn your webcam or any photo into live ASCII art, right in your
+          browser. Everything runs locally on your device — nothing is
+          uploaded. Pick from ten character sets (or type your own), choose
+          colors, adjust contrast and resolution, then export your creation
+          as a PNG image, MP4 video, or animated GIF. Free, no signups, no
+          ads.
+        </p>
+        <h2 style="margin: 0 0 8px; font-size: 1.1rem">How it works</h2>
+        <ol style="max-width: 42rem; margin: 0; padding-left: 1.4rem; text-align: left; line-height: 1.6">
+          <li>Allow camera access, or upload a photo instead.</li>
+          <li>Pick a character set, color, and contrast — the ASCII art updates live.</li>
+          <li>Export a PNG snapshot, record an MP4 video, or capture a GIF.</li>
+        </ol>
+      </section>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
