@@ -105,6 +105,13 @@
           <li>Pick a character set, color, and contrast — the ASCII art updates live.</li>
           <li>Export a PNG snapshot, record an MP4 video, or capture a GIF.</li>
         </ol>
+        <!-- The blog is static HTML (scripts/build-blog.mjs). This link lets
+             crawlers find it from the homepage, and the build replaces the
+             marker below with links to the newest posts. -->
+        <div style="max-width: 42rem; margin: 20px 0 0; text-align: left; line-height: 1.6">
+          <a href="/blog" style="color: #00ff88">The ascii-cam blog</a>: how ASCII art works and how to make it.
+          <!-- blog:latest -->
+        </div>
       </section>
     </div>
     <script type="module" src="/src/main.tsx"></script>
