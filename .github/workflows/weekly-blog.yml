@@ -1,0 +1,173 @@
+name: Weekly blog post
+
+# goose-rank weekly blog (templates/weekly-blog.yml), filled in for ascii-cam.
+#
+# Every Monday Claude writes the next post from seo/topics.md (instructions:
+# seo/WEEKLY-POST.md). This workflow checks it, opens a PR and merges it, and
+# Vercel deploys main. A post that fails a check stays open as a PR labeled
+# needs-review, Erin is asked to review it, and the run fails so GitHub emails
+# her. Run it on demand from the Actions tab ("Run workflow").
+#
+# Needs:
+#   secret CLAUDE_CODE_OAUTH_TOKEN, from `claude setup-token` (uses the Claude subscription)
+#   Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests"
+on:
+  schedule:
+    - cron: "0 14 * * 1" # 14:00 UTC Monday (7am Pacific)
+  workflow_dispatch:
+
+concurrency:
+  group: weekly-blog
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+env:
+  SITE_URL: https://ascii-cam.com
+
+jobs:
+  # One post at a time. The topic list only moves on when a post is merged, so
+  # a post held for review would get written again next week. Skip the week
+  # until it's merged or closed.
+  waiting-post:
+    runs-on: ubuntu-latest
+    outputs:
+      open: ${{ steps.count.outputs.open }}
+    steps:
+      - id: count
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName \
+            -q '[.[] | select(.headRefName | startswith("blog/"))] | length')
+          echo "open=$open" >> "$GITHUB_OUTPUT"
+          if [ "$open" != "0" ]; then
+            echo "::notice::A blog post is waiting for review, so this week is skipped."
+          fi
+
+  write-post:
+    needs: waiting-post
+    if: needs.waiting-post.outputs.open == '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24 and pnpm 10, the versions Vercel builds with.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # pnpm comes from npm rather than pnpm/action-setup, because action-setup
+      # errors when package.json also sets "packageManager".
+      - run: npm install -g pnpm@10
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Write the next post
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Follow seo/WEEKLY-POST.md exactly. Get today's date with `date +%F`.
+          # The Bash(pnpm build:*) entry matches the build command in "Check the post".
+          claude_args: |
+            --max-turns 120
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash(pnpm build:*),Bash(pnpm run build:*),Bash(grep:*),Bash(ls:*),Bash(wc:*),Bash(date:*),Bash(mkdir:*),Bash(mv:*),Bash(git status:*),Bash(git diff:*)"
+
+      # The action hides Claude's output, so print just the final error message.
+      - name: Show Claude's error
+        if: failure() && steps.claude.outputs.execution_file != ''
+        run: |
+          jq -r '(if type == "array" then . else [.] end) | map(select(.type == "result")) | last | .result // "no result message"' \
+            "${{ steps.claude.outputs.execution_file }}"
+
+      - name: Read PR title and body
+        id: pr
+        run: |
+          if [ -f .weekly-pr/title.txt ] && [ -f .weekly-pr/body.md ]; then
+            echo "title=$(head -n 1 .weekly-pr/title.txt)" >> "$GITHUB_OUTPUT"
+            echo "body=.weekly-pr/body.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "Claude didn't write .weekly-pr/title.txt and body.md; check the run log." > "$RUNNER_TEMP/missing.md"
+            echo "title=blog: weekly post (check run log)" >> "$GITHUB_OUTPUT"
+            echo "body=$RUNNER_TEMP/missing.md" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Nobody reads the post before it goes live, so these are the gate: exactly
+      # one new post, complete front matter, none of the banned words or
+      # placeholder text, and a build that renders it. scripts/build-blog.mjs
+      # also fails the build on bad dates, a long description, an H1, raw HTML
+      # or a nested list.
+      - name: Check the post
+        id: check
+        run: |
+          fail() { echo "reason=$1" >> "$GITHUB_OUTPUT"; echo "publish=false" >> "$GITHUB_OUTPUT"; echo "::warning::Held for review: $1"; exit 0; }
+          new=$(git status --porcelain --untracked-files=all -- content/blog | awk '$1 == "??" && $2 ~ /\.md$/ {print $2}')
+          [ "$(echo "$new" | grep -c . || true)" = "1" ] || fail "expected exactly one new post in content/blog, found: $(echo ${new:-none} | tr '\n' ' ')"
+          slug=$(basename "$new" .md)
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          for key in title description answer publishedAt; do
+            grep -q -E "^$key: *[^ ]" "$new" || fail "front matter is missing $key"
+          done
+          desc=$(awk '/^description:/ { sub(/^description: */, ""); gsub(/^"|"$/, ""); print; exit }' "$new")
+          [ ${#desc} -le 160 ] || fail "description is ${#desc} characters (max 160)"
+          if grep -n -E '—|genuinely|delve|leverage|robust|comprehensive|seamless|game-changer|unlock|cutting-edge|tapestry|foster|Moreover|Furthermore|Notably' "$new"; then
+            fail "banned words or em dashes in the post"
+          fi
+          if grep -n -i -E 'lorem ipsum|\bTODO\b|\bTBD\b|\[insert|placeholder|as an ai' "$new"; then
+            fail "placeholder text in the post"
+          fi
+          pnpm build || fail "the build failed"
+          post_html="dist/blog/$slug/index.html"
+          [ -f "$post_html" ] || fail "the build didn't render /blog/$slug"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+      # A post only touches content/blog and seo/. The build adds it to /blog,
+      # the sitemap, llms.txt and the homepage on its own (dist/ isn't committed).
+      - name: Open PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: main
+          branch: blog/weekly-${{ github.run_number }}
+          title: ${{ steps.pr.outputs.title }}
+          body-path: ${{ steps.pr.outputs.body }}
+          commit-message: ${{ steps.pr.outputs.title }}
+          labels: ${{ steps.check.outputs.publish != 'true' && 'needs-review' || '' }}
+          reviewers: ${{ steps.check.outputs.publish != 'true' && 'ernkerr' || '' }}
+          add-paths: |
+            content/blog/**
+            seo/**
+          delete-branch: true
+
+      # Rebase keeps Erin as the commit author (the post commit is authored by
+      # the workflow's actor), which Vercel needs to deploy a private repo.
+      - name: Publish
+        if: steps.check.outputs.publish == 'true' && steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --repo "$GITHUB_REPOSITORY" --rebase --delete-branch
+
+      - name: Wait for it to go live
+        if: steps.check.outputs.publish == 'true' && steps.cpr.outputs.pull-request-number != ''
+        run: |
+          url="$SITE_URL/blog/${{ steps.check.outputs.slug }}"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+            [ "$code" = "200" ] && { echo "Live: $url"; exit 0; }
+            sleep 30
+          done
+          echo "::error::$url still returns $code after 15 minutes. Check the Vercel deploy."
+          exit 1
+
+      - name: Fail the run if the post was held
+        if: steps.check.outputs.publish != 'true'
+        run: |
+          echo "::error::Post held for review (${{ steps.check.outputs.reason }}). It's open as a PR labeled needs-review."
+          exit 1

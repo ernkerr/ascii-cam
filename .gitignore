@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# PR title and body the weekly blog workflow reads (never committed)
+.weekly-pr/
