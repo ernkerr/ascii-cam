@@ -1,0 +1,29 @@
+{
+  "domain": "https://ascii-cam.com",
+  "domainNote": "The bare domain is the only host: http 308s to https://ascii-cam.com/. www.ascii-cam.com has a DNS CNAME to cname.vercel-dns.com but isn't a domain on the Vercel project, so HTTPS on www fails (the certificate only covers ascii-cam.com). Adding www in Vercel as a redirect to the bare domain fixes it.",
+  "searchConsole": {
+    "property": null,
+    "connected": false,
+    "note": "Not checked in this run (no Search Console access). Unknown whether the site is verified. If it isn't, add a URL-prefix property https://ascii-cam.com/ with the HTML file method (file goes in public/), then submit https://ascii-cam.com/sitemap.xml."
+  },
+  "ga4": {
+    "propertyId": null,
+    "measurementId": "G-L3WH3B2S68",
+    "keyEvents": [],
+    "keyEventsNote": "index.html only sends the default page_view. Nothing in src/ calls gtag('event', ...), so there's no key event yet (an export would be the natural one: PNG, video or GIF saved). The numeric property ID comes from GA4 Admin > Property details."
+  },
+  "bing": {
+    "verified": false,
+    "indexNowKey": null
+  },
+  "voice": "seo/voice.md",
+  "publish": {
+    "stack": "Vite 8 + React 19 single-page app (TypeScript), built with pnpm. The app is client-rendered; index.html carries a static, crawlable section inside #root that React replaces on load. The blog is static HTML made after the Vite build by scripts/build-blog.mjs.",
+    "newPage": "Blog post: add content/blog/<slug>.md (slug = lowercase letters, numbers and hyphens) with front matter title, description (max 160 characters), answer, publishedAt, updatedAt (YYYY-MM-DD). `pnpm build` renders dist/blog/<slug>/index.html and adds the post to /blog, dist/sitemap.xml, dist/llms.txt and the homepage's newest-posts list on its own. The markdown it supports is listed at the top of scripts/build-blog.mjs; an H1, raw HTML or a nested list fails the build. Any other kind of new page has no system yet: a React route would only exist after JavaScript runs, so it needs its own static HTML (another generator in scripts/ and a rewrite in vercel.json).",
+    "metadata": "Homepage: written by hand in index.html (title, description, canonical, OG, Twitter, WebApplication JSON-LD). Blog: page() in scripts/build-blog.mjs sets the title as '<title> | ascii-cam', the description, a self canonical, OG and Twitter tags, article times and BlogPosting JSON-LD (Blog JSON-LD on /blog). The OG image is /og.png when public/og.png exists (branch seo/og-image adds it), /favicon.png until then.",
+    "sitemap": "public/sitemap.xml is static and lists only the homepage (lastmod by hand, 2026-07-15). The build appends /blog and every post to dist/sitemap.xml with lastmod = updatedAt. public/robots.txt points at https://ascii-cam.com/sitemap.xml.",
+    "llmsTxt": "public/llms.txt is static and edited by hand (it has em dashes, and says 'ten character sets' where the app has nine plus Custom). The build appends a '## Blog' section with every post to dist/llms.txt, so posts are never added by hand.",
+    "build": "pnpm build (tsc -b && vite build && node scripts/build-blog.mjs). Output in dist/.",
+    "deploy": "Vercel project ascii-cam (team erns-projects, framework Vite, Node 24.x; Vercel installs with pnpm 10 and runs `pnpm run build`). Pushing to main deploys production. vercel.json rewrites /blog and /blog/:slug to their index.html files and 308-redirects trailing slashes away. Domains: ascii-cam.com plus ascii-cam-pi.vercel.app and two other vercel.app aliases. Weekly posts: .github/workflows/weekly-blog.yml writes, checks and merges one every Monday (seo/WEEKLY-POST.md)."
+  }
+}
