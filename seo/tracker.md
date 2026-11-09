@@ -37,6 +37,7 @@ Every shipped change gets a row the day it ships. "Before" is the newest snapsho
 |---|---|---|---|---|---|---|---|---|
 | 2026-11-04 | Static blog (scripts/build-blog.mjs): /blog and /blog/<slug> as real HTML, added to the sitemap and llms.txt, linked from the homepage's static markup, plus the weekly-post workflow. On branch seo/weekly-blog, live once merged | /blog | | Baseline: /blog 404, 1 URL in the sitemap | | | | |
 | 2026-11-04 | New post | /blog/how-ascii-art-works | how does ascii art work | none (new page) | | | | |
+| 2026-11-09 | New post | /blog/ascii-characters-dark-to-light | ascii characters dark to light | none (new page) | | | | |
 
 ## Weekly checks
 
