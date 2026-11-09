@@ -9,5 +9,6 @@ In posts, link with root-relative paths (`/`, `/blog`, `/blog/<slug>`). New post
 | Home (the app) | https://ascii-cam.com/ | ascii-cam, turn your webcam into ASCII art | every blog page (header, footer, end-of-post button), llms.txt |
 | Blog | https://ascii-cam.com/blog | the ascii-cam blog | homepage static markup inside `#root`, every blog page header, llms.txt, sitemap |
 | How ASCII art works | https://ascii-cam.com/blog/how-ascii-art-works | how ASCII art works | /blog, homepage newest-posts list (added by the build), llms.txt |
+| ASCII characters dark to light | https://ascii-cam.com/blog/ascii-characters-dark-to-light | ASCII characters from dark to light | /blog, homepage newest-posts list (added by the build), llms.txt |
 
 The React app itself (what visitors see after the JavaScript loads) doesn't link to the blog yet. The link above is in the static HTML that crawlers read and React replaces on load.
