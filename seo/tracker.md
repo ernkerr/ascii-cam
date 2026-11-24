@@ -39,6 +39,7 @@ Every shipped change gets a row the day it ships. "Before" is the newest snapsho
 | 2026-11-04 | New post | /blog/how-ascii-art-works | how does ascii art work | none (new page) | | | | |
 | 2026-11-09 | New post | /blog/ascii-characters-dark-to-light | ascii characters dark to light | none (new page) | | | | |
 | 2026-11-16 | New post | /blog/how-to-make-an-ascii-art-gif | how to make an ascii art gif | none (new page) | | | | |
+| 2026-11-24 | New post | /blog/how-to-make-an-ascii-art-video | how to make an ascii art video | none (new page) | | | | |
 
 ## Weekly checks
 
