@@ -11,5 +11,6 @@ In posts, link with root-relative paths (`/`, `/blog`, `/blog/<slug>`). New post
 | How ASCII art works | https://ascii-cam.com/blog/how-ascii-art-works | how ASCII art works | /blog, homepage newest-posts list (added by the build), llms.txt |
 | ASCII characters dark to light | https://ascii-cam.com/blog/ascii-characters-dark-to-light | ASCII characters from dark to light | /blog, homepage newest-posts list (added by the build), llms.txt |
 | How to make an ASCII art GIF | https://ascii-cam.com/blog/how-to-make-an-ascii-art-gif | how to make an ASCII art GIF | /blog, homepage newest-posts list (added by the build), llms.txt |
+| How to make an ASCII art video | https://ascii-cam.com/blog/how-to-make-an-ascii-art-video | how to make an ASCII art video | /blog, homepage newest-posts list (added by the build), llms.txt |
 
 The React app itself (what visitors see after the JavaScript loads) doesn't link to the blog yet. The link above is in the static HTML that crawlers read and React replaces on load.
